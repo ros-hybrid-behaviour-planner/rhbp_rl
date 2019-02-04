@@ -13,8 +13,8 @@ from exploration_strategies import ExplorationStrategies
 from input_state_transformer import InputStateTransformer
 from rl_config import TransitionConfig
 
-from rhbp_core.msg import InputState
-from rhbp_core.srv import GetActivation
+from rhbp_rl.msg import InputState
+from rhbp_rl.srv import GetActivation
 from rl_component import RLComponent
 from behaviour_components.activation_algorithm import BaseActivationAlgorithm, ActivationAlgorithmFactory
 

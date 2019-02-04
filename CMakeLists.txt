@@ -7,6 +7,8 @@ project(rhbp_rl)
 find_package(catkin REQUIRED COMPONENTS
   rhbp_core
   rospy
+  std_msgs
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -43,18 +45,18 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  ActivationState.msg
+  InputState.msg
+)
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+  FILES
+  GetActivation.srv
+  TrainBatches.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -64,9 +66,10 @@ catkin_python_setup()
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -100,7 +103,7 @@ catkin_python_setup()
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES rhbp_rl
-#  CATKIN_DEPENDS rhbp_core rospy
+  CATKIN_DEPENDS rhbp_core rospy std_msgs
 #  DEPENDS system_lib
 )
 

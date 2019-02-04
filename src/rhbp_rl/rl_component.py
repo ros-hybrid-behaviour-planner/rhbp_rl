@@ -4,8 +4,8 @@
 """
 import rospy
 from dqn_model import DQNModel
-from rhbp_core.msg import ActivationState
-from rhbp_core.srv import GetActivation, GetActivationResponse
+from rhbp_rl.msg import ActivationState
+from rhbp_rl.srv import GetActivation, GetActivationResponse
 import numpy
 
 
@@ -24,8 +24,8 @@ class RLComponent(object):
         # True if the model was set up
         self.is_model_init = False
         # Service for communicating the activations
-        self._getStateService = rospy.Service(name + 'GetActivation', GetActivation,
-                                              self._get_activation_state_callback)
+        self._get_activation_service = rospy.Service(name + 'GetActivation', GetActivation,
+                                                     self._get_activation_state_callback)
         # choose appropriate model
         self.model = DQNModel(self.name)
 
