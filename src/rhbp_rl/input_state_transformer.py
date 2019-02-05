@@ -1,10 +1,14 @@
 """
 transforms values from rhbp to rl-values
-@author: lehmann
+@author: lehmann, hrabia
 """
 import numpy
 from behaviour_components.sensors import EncodingConstants
 from rl_config import TransitionConfig
+
+import utils.rhbp_logging
+rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
+
 
 class InputStateTransformer(object):
     """

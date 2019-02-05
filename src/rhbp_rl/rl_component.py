@@ -8,6 +8,9 @@ from rhbp_rl.msg import ActivationState
 from rhbp_rl.srv import GetActivation, GetActivationResponse
 import numpy
 
+import utils.rhbp_logging
+rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
+
 
 class RLComponent(object):
     """
@@ -51,8 +54,7 @@ class RLComponent(object):
             activation_state = self.get_activation_state(input_state, negative_states)
             return GetActivationResponse(activation_state)
         except Exception as e:
-            print(e)
-            rospy.logerr(e.message)
+            rhbplog.logerr(e.message)
             return None
 
     def get_activation_state(self, input_state, negative_states=None):
@@ -84,7 +86,7 @@ class RLComponent(object):
             })
             return activation_state
         except Exception as e:
-            rospy.logerr(e.message)
+            rhbplog.logerr(e.message)
             return None
 
     def save_state(self, input_state):
@@ -157,4 +159,4 @@ if __name__ == '__main__':
         rospy.spin()
 
     except rospy.ROSInterruptException:
-        rospy.logerr("program interrupted before completion")
+        rhbplog.logerr("program interrupted before completion")

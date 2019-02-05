@@ -1,11 +1,13 @@
 """
 base class for implementing a reinforcement learning algorithm with a neural network
-@author: lehmann
+@author: lehmann, hrabia
 """
-import rospy
 import tensorflow as tf
 import os
 from rl_config import SavingConfig
+
+import utils.rhbp_logging
+rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
 
 class ReinforcementAlgorithmBase(object):
@@ -38,7 +40,7 @@ class ReinforcementAlgorithmBase(object):
             try:
                 self.load_model(num_inputs, num_outputs)
             except Exception as e:
-                rospy.logerr("Failed loading model, initialising a new one. Error: %s", e)
+                rhbplog.logerr("Failed loading model, initialising a new one. Error: %s", e)
                 self.initialize_model(num_inputs, num_outputs)
         else:
             self.initialize_model(num_inputs, num_outputs)
@@ -101,7 +103,7 @@ class ReinforcementAlgorithmBase(object):
         if self.save_conf.save_buffer:
             self.save_buffer()
 
-        rospy.loginfo("Saved model '%s'", self.model_path)
+        rhbplog.loginfo("Saved model '%s'", self.model_path)
 
     def save_buffer(self):
         raise NotImplementedError

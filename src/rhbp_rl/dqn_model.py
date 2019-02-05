@@ -24,6 +24,9 @@ from tensorflow.contrib import slim
 from nn_model_base import ReinforcementAlgorithmBase
 from rl_config import NNConfig, EvaluationConfig, SavingConfig, DQNConfig, ExplorationConfig
 
+import utils.rhbp_logging
+rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
+
 
 class DQNModel(ReinforcementAlgorithmBase):
     def __init__(self, name):
@@ -111,7 +114,7 @@ class DQNModel(ReinforcementAlgorithmBase):
         self.initialize_model(num_inputs, num_outputs, load_mode=False)
         self.saver.restore(self.sess, tf.train.latest_checkpoint(self.model_folder))
         self.load_buffer()
-        rospy.loginfo("model restored")
+        rhbplog.loginfo("model restored")
 
     def load_buffer(self):
         """
@@ -126,9 +129,9 @@ class DQNModel(ReinforcementAlgorithmBase):
 
             self.myBuffer.counter = len(buffer)
             self.myBuffer.buffer = buffer
-            rospy.loginfo("experience buffer successfully loaded")
+            rhbplog.loginfo("experience buffer successfully loaded")
         except Exception:
-            rospy.loginfo("File not found. Cannot load the experience buffer")
+            rhbplog.loginfo("File not found. Cannot load the experience buffer")
 
     def save_buffer(self):
         """

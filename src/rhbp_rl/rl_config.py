@@ -1,6 +1,6 @@
 """
 The different configuration parameters. They get Whether here set or as ros parameters
-@author: lehmann
+@author: lehmann, hrabia
 """
 import rospy
 
