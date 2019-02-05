@@ -234,15 +234,13 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         ref_behaviour.current_activation_step = current_activation_step
         return current_activation_step
 
-    def update_config(self, **kwargs):
+    def step_preparation(self):
         """
-        overrides update_config. includes fetching the most recent activation for the input state and 
+        overrides step_preparation. includes fetching the most recent activation for the input state and
         choosing a random action according to the exploration strategy 
-        :param kwargs: 
-        :return: 
         """
         # include BaseActivation functions
-        super(ReinforcementLearningActivationAlgorithm, self).update_config(**kwargs)
+        super(ReinforcementLearningActivationAlgorithm, self).step_preparation()
         self._activation_decay = self.config.activation_decay
         num_actions = len(self._manager._behaviours)  # TODO this is dirty, accessing private member
         # if the rl activation is not used dont calculate the values and set all to zero
@@ -271,10 +269,10 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
 
 def register_in_factory(activation_algo_factory):
     """
-    After this module has been imported you have to register the algos from this module in the other factory.
+    After this module has been imported you have to register the algos from this module in the other factory by
+    calling this method.
     :param activation_algo_factory: the factory to register the activation algorithm
     :type activation_algo_factory: ActivationAlgorithmFactory
-    :return:
     """
 
     activation_algo_factory.register_algorithm("reinforcement", ReinforcementLearningActivationAlgorithm)

@@ -64,8 +64,8 @@ class TestReinforcementLearning(unittest.TestCase):
         register_in_factory(ActivationAlgorithmFactory)
         m = Manager(activationThreshold=7, prefix=planner_prefix, activation_algorithm="reinforcement")
 
-        behaviour_a = BehaviourA(name=method_prefix+"A", plannerPrefix=planner_prefix)
-        behaviour_b = BehaviourB(name=method_prefix+"B", plannerPrefix=planner_prefix)
+        behaviour_a = BehaviourA(name=method_prefix+"A", planner_prefix=planner_prefix)
+        behaviour_b = BehaviourB(name=method_prefix+"B", planner_prefix=planner_prefix)
 
         sensor = Sensor(name="bool_sensor", initial_value=False)
 
@@ -73,7 +73,7 @@ class TestReinforcementLearning(unittest.TestCase):
         behaviour_a.add_effect(Effect(sensor_name=sensor.name, indicator=1.0))
         behaviour_b.add_effect(Effect(sensor_name=sensor.name, indicator=1.0))
 
-        goal = GoalBase(method_prefix + '_goal', plannerPrefix=planner_prefix)
+        goal = GoalBase(method_prefix + '_goal', planner_prefix=planner_prefix)
         goal.add_condition(Condition(sensor, BooleanActivator()))
 
         for x in range(0, 10, 1):

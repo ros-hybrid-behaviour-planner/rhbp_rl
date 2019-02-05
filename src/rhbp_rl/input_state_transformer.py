@@ -22,7 +22,7 @@ class InputStateTransformer(object):
         :return: 
         """
         reward_value = 0
-        for goal in self._manager.activeGoals:
+        for goal in self._manager.operational_goals:
             goal_value = goal.fulfillment * goal.priority
             reward_value += goal_value
         return reward_value
