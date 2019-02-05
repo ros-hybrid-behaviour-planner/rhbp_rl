@@ -109,7 +109,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         # receive the reward from the goals
         reward = self.input_transformer.calculate_reward()
         # receive the executed action from the executed behaviour
-        last_action = self._manager.executedBehaviours
+        last_action = self._manager.executed_behaviours
         if len(last_action) == 0:
             return False, None, None, None, None, None
         last_action_index = self.input_transformer.behaviour_to_index(
