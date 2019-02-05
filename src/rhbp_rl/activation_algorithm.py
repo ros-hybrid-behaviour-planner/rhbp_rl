@@ -19,7 +19,6 @@ from rl_component import RLComponent
 from behaviour_components.activation_algorithm import BaseActivationAlgorithm, ActivationAlgorithmFactory
 
 import utils.rhbp_logging
-
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
 

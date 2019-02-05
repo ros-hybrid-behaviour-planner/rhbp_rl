@@ -41,6 +41,9 @@ class RLComponent(object):
         # current experience batch tuples (old_state,new_state,action,reward)
         self.reward_list = []
 
+        self._unregistered = False
+        rospy.on_shutdown(self.unregister)  # cleanup hook also for saving the model.
+
     def _get_activation_state_callback(self, request_msg):
         """
         answers the RL activation service and responds with the activations/reinforcements
@@ -147,6 +150,14 @@ class RLComponent(object):
         self.reward_list = []
 
         self.is_model_init = True
+
+    def unregister(self):
+        if not self._unregistered:
+            self._unregistered = True
+            self.model.save_model()
+
+    def __del__(self):
+        self.unregister()
 
 
 # Component can also be started as a independent node.
