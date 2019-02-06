@@ -9,6 +9,7 @@ import rospy
 
 import subprocess
 import numpy as np
+from rhbp_core.msg import Activation
 from exploration_strategies import ExplorationStrategies
 from input_state_transformer import InputStateTransformer
 from rl_config import TransitionConfig
@@ -204,33 +205,18 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         :param ref_behaviour: for which behaviour the activation should be computed
         :return: 
         """
-
-        activation_precondition = self.get_activation_from_preconditions(ref_behaviour)
-        activation_goals = self.get_activation_from_goals(ref_behaviour)[0]
-        inhibition_goals = self.get_inhibition_from_goals(ref_behaviour)[0]
-        activation_predecessors = self.get_activation_from_predecessors(ref_behaviour)[0]
-        activation_successors = self.get_activation_from_successors(ref_behaviour)[0]
-        inhibition_conflictors = self.get_inhibition_from_conflictors(ref_behaviour)[0]
-        activation_plan = self.get_activation_from_plan(ref_behaviour)[0]
+        # calling base method for getting other activations
+        current_activation_step = super(ReinforcementLearningActivationAlgorithm, self).\
+            compute_behaviour_activation_step(ref_behaviour=ref_behaviour)
+        # get activation from reinforcement learning
         rl_activation = self.get_rl_activation_for_ref(ref_behaviour)
 
-        rhbplog.loginfo("\t%s: activation from preconditions: %s", ref_behaviour, activation_precondition)
-        rhbplog.loginfo("\t%s: activation from goals: %s", ref_behaviour, activation_goals)
-        rhbplog.loginfo("\t%s: inhibition from goals: %s", ref_behaviour, inhibition_goals)
-        rhbplog.loginfo("\t%s: activation from predecessors: %s", ref_behaviour, activation_predecessors)
-        rhbplog.loginfo("\t%s: activation from successors: %s", ref_behaviour, activation_successors)
-        rhbplog.loginfo("\t%s: inhibition from conflicted: %s", ref_behaviour, inhibition_conflictors)
-        rhbplog.loginfo("\t%s: activation from plan: %s", ref_behaviour, activation_plan)
-        rhbplog.loginfo("\t%s: activation from rl: %s", ref_behaviour, rl_activation)
-        current_activation_step = activation_precondition \
-                                  + activation_goals \
-                                  + inhibition_goals \
-                                  + activation_predecessors \
-                                  + activation_successors \
-                                  + inhibition_conflictors \
-                                  + activation_plan \
-                                  + rl_activation
-        ref_behaviour.current_activation_step = current_activation_step
+        rhbplog.loginfo("\t%s: activation from rl: %2.3f", ref_behaviour, rl_activation)
+
+        ref_behaviour.current_activation_step = current_activation_step + rl_activation
+
+        ref_behaviour.activation_components.append(Activation('RL', rl_activation))
+
         return current_activation_step
 
     def step_preparation(self):
