@@ -4,6 +4,8 @@ The different configuration parameters. They get Whether here set or as ros para
 """
 import rospy
 
+import utils.rhbp_logging
+rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
 class NNConfig(object):
     """
@@ -102,18 +104,24 @@ class ExplorationConfig(object):
         try:
             # let the model choose random actions and dont train for these number of steps
             self.pre_train = rospy.get_param("~pre_train", 000)
-            self.startE = rospy.get_param("~startE", 0.50)
+            self.startE = rospy.get_param("~startE", 0.50)  # set to 0 to disable exploration.
             self.endE = rospy.get_param("~endE", 0.01)
-            self.anneling_steps = rospy.get_param("~anneling_steps", 100000)  # steps until it reache endE
+            self.annealing_steps = rospy.get_param("~annealing_steps", 100000)  # steps until it reaches endE
             # function that describes the stepDrop changing epsilon
-            self.stepDrop = (self.startE - self.endE) / self.anneling_steps
+            self.stepDrop = (self.startE - self.endE) / self.annealing_steps
         except Exception:
             self.pre_train = 000
             self.startE = 0.00
             self.endE = 0.0
-            self.anneling_steps = 10000  # steps until it reache endE
+            self.annealing_steps = 10000  # steps until it reaches endE
             # function that describes the stepDrop changing epsilon
-            self.stepDrop = (self.startE - self.endE) / self.anneling_steps
+            self.stepDrop = (self.startE - self.endE) / self.annealing_steps
+
+        rhbplog.loginfo("pre_train: %d", self.pre_train)
+        rhbplog.loginfo("startE: %2.3f", self.startE)
+        rhbplog.loginfo("endE: %2.3f", self.endE)
+        rhbplog.loginfo("annealing_steps:%d", self.annealing_steps)
+        rhbplog.loginfo("stepDrop:%2.3f", self.stepDrop)
 
 
 class TransitionConfig(object):
@@ -126,13 +134,10 @@ class TransitionConfig(object):
             self.use_wishes = rospy.get_param("~use_wishes", False)  # if the transformer should use wishes as input
             self.use_true_values = rospy.get_param("~use_true_values",
                                                    True)  # if the transformer should use conditions as input
-            self.max_activation = rospy.get_param("~max_activation", 1)  # maximal activation
-            self.min_activation = rospy.get_param("~min_activation", 0)  # minimal activation
+            self.max_activation = rospy.get_param("~max_activation", 1)  # maximal RL activation
+            self.min_activation = rospy.get_param("~min_activation", 0)  # minimal RL activation
             self.weight_rl = rospy.get_param("~weight_rl", 1.0)  # weight of the rl component
-            self.activation_decay = rospy.get_param("~activation_decay",
-                                                    0.0)  # how much to way the current activation for the next activation step
-            self.use_negative_states = rospy.get_param("~use_negative_states",
-                                                       True)
+            self.use_negative_states = rospy.get_param("~use_negative_states", True)
             self.use_node = rospy.get_param("~use_node", False)  # if a own node should be used for the rl_component
         except Exception:
             self.use_wishes = False
@@ -140,6 +145,5 @@ class TransitionConfig(object):
             self.max_activation = 1
             self.min_activation = 0
             self.weight_rl = 1.0
-            self.activation_decay = 0.0
             self.use_negative_states = True
             self.use_node = False

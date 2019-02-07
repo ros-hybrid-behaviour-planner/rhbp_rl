@@ -110,10 +110,10 @@ class InputStateTransformer(object):
         use_wishes = self.conf.use_wishes
         use_true_value = self.conf.use_true_values
         # get sensors from goals
-        for goal in self._manager._goals:
+        for goal in self._manager.goals:
             for sensor_value in goal.sensor_values:
                 if not sensor_input.has_key(sensor_value.name) and use_true_value:
-                    # encode or ignore the value regarding configuraiton in RLExtension
+                    # encode or ignore the value regarding configuration in RLExtension
                     if not sensor_value.include_in_rl:
                         continue
                     if sensor_value.encoding == EncodingConstants.HOT_STATE:

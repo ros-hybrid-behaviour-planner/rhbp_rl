@@ -154,7 +154,8 @@ class RLComponent(object):
     def unregister(self):
         if not self._unregistered:
             self._unregistered = True
-            self.model.save_model()
+            if self.model:
+                self.model.save_model()
 
     def __del__(self):
         self.unregister()

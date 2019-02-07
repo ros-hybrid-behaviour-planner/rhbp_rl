@@ -45,14 +45,12 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         self.min_activation = self.config.min_activation
         # step counter is used for exploration
         self._step_counter = 0
-        # setting the activation decay.
-        self._activation_decay = self.config.activation_decay
-        # transforms rhbp values to rl values
+        # transforms rhbp values to abstract rl values
         self.input_transformer = InputStateTransformer(manager)
         # the rl component
         self.rl_component = None
-        # adrress of the rl node
-        self.rl_address = self._manager._prefix.replace("/Manager", "_rl_node")
+        # address of the rl node
+        self.rl_address = self._manager.prefix.replace("/Manager", "_rl_node")
         # start only rl_component if needed
         if self.weight_rl > 0.0:
             # select if a own node should be started for the rl_component
@@ -140,12 +138,12 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         input_state_msg.last_action = last_action_index
 
         # collect negative states (not executable behaviors)
-        num_actions = len(self._manager._behaviours)
+        num_actions = len(self._manager.behaviours)
         negative_states = []
         if self.config.use_negative_states:
             for action_index in range(num_actions):
                 # if random chosen number is not executable, give minus reward and sent it to rl component
-                if not self._manager._behaviours[action_index].executable:
+                if not self._manager.behaviours[action_index].executable:
                     negative_state = InputState()
                     negative_state.input_state = input_state
                     negative_state.num_outputs = num_outputs
@@ -191,11 +189,11 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         else:
             value = self.activation_rl[index]
             # normalisation
-            max = np.max(self.activation_rl)
-            min = np.min(self.activation_rl)
+            max_val = np.max(self.activation_rl)
+            min_val = np.min(self.activation_rl)
             b = self.config.max_activation
             a = self.config.min_activation
-            value = (b - a) * (value - min) / (max - min) + a
+            value = (b - a) * (value - min_val) / (max_val - min_val) + a
             value *= self.config.weight_rl
         return value
 
@@ -226,10 +224,11 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         """
         # include BaseActivation functions
         super(ReinforcementLearningActivationAlgorithm, self).step_preparation()
-        self._activation_decay = self.config.activation_decay
-        num_actions = len(self._manager._behaviours)  # TODO this is dirty, accessing private member
+
+        # TODO Idea we could also consider to move the rest of this method to a future/thread to increase concurrency
+        num_actions = len(self._manager.behaviours)
         # if the rl activation is not used dont calculate the values and set all to zero
-        if self.weight_rl <= 0: # TODO why this weight comes from a different source?
+        if self.weight_rl <= 0:  # TODO why this weight comes from a different source?
             self.activation_rl = [0] * num_actions  # set all activations to 0
             return
 
