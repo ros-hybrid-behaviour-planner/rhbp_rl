@@ -64,6 +64,8 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         # implements different exploration strategies
         self.exploration_strategies = ExplorationStrategies()
 
+        self.explored_in_last_step = False
+
     def start_rl_class(self):
         """
         starts the rl_component as a class
@@ -249,6 +251,9 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         if changed:
             self.activation_rl = [0] * num_actions  # set all activations to 0
             self.activation_rl[best_action] = self.max_activation  # only support the one to be explored
+            self.explored_in_last_step = True
+        else:
+            self.explored_in_last_step = False
         # set the step counter higher
         self._step_counter += 1
 
