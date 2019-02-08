@@ -163,13 +163,14 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         :param negative_states: 
         :return: 
         """
+        self.activation_rl = []
         if self.config.use_node:  # either use the service or a direct method call.
             try:
                 rhbplog.logdebug("Waiting for service %s", self.rl_address + 'GetActivation')
                 rospy.wait_for_service(self.rl_address + 'GetActivation', timeout=self.SERVICE_TIMEOUT)
             except rospy.ROSException:
                 rospy.logerr("GetActivation service not found")
-                return 0
+                return
             try:
                 get_activation_request = rospy.ServiceProxy(self.rl_address + 'GetActivation', GetActivation)
                 activation_state = get_activation_request(input_state, negative_states).activation_state
@@ -179,7 +180,8 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         else:
             activation_state = self.rl_component.get_activation_state(input_state, negative_states)
 
-        self.activation_rl = list(activation_state.activations)
+        if activation_state:
+            self.activation_rl = list(activation_state.activations)
 
     def get_rl_activation_for_ref(self, ref_behaviour):
         index = self.input_transformer.behaviour_to_index(ref_behaviour)

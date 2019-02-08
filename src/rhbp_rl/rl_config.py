@@ -7,6 +7,7 @@ import rospy
 import utils.rhbp_logging
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
+
 class NNConfig(object):
     """
     used for setting the neural network 
@@ -50,6 +51,18 @@ class DQNConfig(object):
             self.train_interval = 5  # train the model every train_interval steps
             self.stop_training = 6000000  # steps after the model does not get trained anymore
             self.pre_train = 100  # no training before this many steps
+
+        rhbplog.loginfo("Discount factor y: %2.3f", self.y)
+        rhbplog.loginfo("Target update tau: %2.3f", self.tau)
+        rhbplog.loginfo("batch_size: %d", self.batch_size)
+        rhbplog.loginfo("buffer_size: %d", self.buffer_size)
+        rhbplog.loginfo("train_interval: %d", self.train_interval)
+        rhbplog.loginfo("stop_training: %d", self.stop_training)
+        rhbplog.loginfo("pre_train: %d", self.pre_train)
+
+        if self.batch_size > self.pre_train:
+            self.pre_train = self.batch_size
+            rospy.logwarn("Required: pre_train >= batch_size. Setting pre_train=%d", self.batch_size)
 
 
 class SavingConfig(object):
