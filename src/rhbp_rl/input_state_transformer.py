@@ -23,7 +23,7 @@ class InputStateTransformer(object):
         """
         this function calculates regarding the fulfillment and priorities of the active goals
         a reward value. 
-        :return: 
+        :return: reward value
         """
         reward_value = 0
         for goal in self._manager.operational_goals:

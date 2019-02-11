@@ -39,10 +39,6 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         self.config = TransitionConfig()
         # values how much the rl activation influences the other components
         self.weight_rl = self.config.weight_rl
-        # set if the exploration choose random action
-        self.max_activation = self.config.max_activation
-        # gets set for not executable actions
-        self.min_activation = self.config.min_activation
         # step counter is used for exploration
         self._step_counter = 0
         # transforms rhbp values to abstract rl values
@@ -96,7 +92,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         """
         receive via the input state transformer the rl values needed for the algorithm.
         checks if values are incomplete
-        :return: returns the input state values or a False value if vlaues are incomplete
+        :return: returns the input state values or a False value if values are incomplete
         """
         # receive outputs from the known behaviours
         num_outputs = len(self._manager.behaviours)
@@ -150,7 +146,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
                     negative_state.input_state = input_state
                     negative_state.num_outputs = num_outputs
                     negative_state.num_inputs = num_inputs
-                    negative_state.reward = self.min_activation
+                    negative_state.reward = self.config.negative_reward
                     negative_state.last_action = action_index
                     negative_states.append(negative_state)
 
@@ -192,7 +188,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
             value = 0
         else:
             value = self.activation_rl[index]
-            # normalisation
+            # normalisation of behaviour reinforcement activations
             max_val = np.max(self.activation_rl)
             min_val = np.min(self.activation_rl)
             b = self.config.max_activation
@@ -250,7 +246,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         changed, best_action = self.exploration_strategies.e_greedy_pre_train(self._step_counter, num_actions)
         if changed:
             self.activation_rl = [0] * num_actions  # set all activations to 0
-            self.activation_rl[best_action] = self.max_activation  # only support the one to be explored
+            self.activation_rl[best_action] = self.config.max_activation  # only support the one to be explored
             self.explored_in_last_step = True
         else:
             self.explored_in_last_step = False

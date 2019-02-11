@@ -45,17 +45,16 @@ class DQNModel(ReinforcementAlgorithmBase):
         self.init = None
         self.targetOps = None
         # buffer class for experience learning
-        self.myBuffer = ExperienceBuffer(self.model_config.buffer_size)
-        self.counter = 0
+        self.exp_buffer = ExperienceBuffer(self.model_config.buffer_size)
+        self.model_training_counter = 0
         self.saver = None
         self.reward_saver = []
-        self.experiment_counter = 0
         self.loss_over_time = []
         self.rewards_over_time = []
 
     def reset_model_values(self):
-        self.counter = 0
-        self.myBuffer.reset()
+        self.model_training_counter = 0
+        self.exp_buffer.reset()
         self.reward_saver = []
 
     def initialize_model(self, num_inputs, num_outputs, load_mode=False):
@@ -127,8 +126,8 @@ class DQNModel(ReinforcementAlgorithmBase):
             with open(filename, "rb") as fp:
                 buffer = pickle.load(fp)
 
-            self.myBuffer.counter = len(buffer)
-            self.myBuffer.buffer = buffer
+            self.exp_buffer.counter = len(buffer)
+            self.exp_buffer.buffer = buffer
             rhbplog.loginfo("experience buffer successfully loaded")
         except Exception:
             rhbplog.loginfo("File not found. Cannot load the experience buffer")
@@ -138,60 +137,73 @@ class DQNModel(ReinforcementAlgorithmBase):
         saving the experience buffer
         :return: 
         """
-        size = self.myBuffer.buffer_size
-        buffer = self.myBuffer.buffer
+        size = self.exp_buffer.buffer_size
+        buffer = self.exp_buffer.buffer
         filename = self.model_folder + "/buffer_" + str(size) + ".txt"
         with open(filename, "wb") as fp:
             pickle.dump(buffer, fp)
 
-    def train_model(self, tuple):
+    def add_sample(self, tuple, consider_reward=True):
         """
-        trains the model by inserting a tuple containing the chosen action in a specific situation with the resulting reward.
-        :param tuple: contains the last state, new state, last action and the resulting reward
-        :return: 
+        inserting a tuple containing the chosen action in a specific situation with the resulting reward.
+        see also super class description.
+        :param tuple:
+        :param consider_reward:
+        :return:
         """
+
         # save rewards
-        self.rewards_over_time.append(tuple[3])
-        # check if evaluation plots should be saved
-        if self.counter % self.eval_config.eval_step_interval == 1:
+        if consider_reward:
+            self.rewards_over_time.append(tuple[3])
+
+        # save the input tuple in buffer
+        transformed_tuple = np.reshape(np.array([tuple[0], tuple[2], tuple[3], tuple[1]]), [1, 4])
+        self.exp_buffer.add(transformed_tuple)
+
+    def train_model(self):
+        """
+        trains the model with the current experience
+        """
+
+        # check if evaluation plots should be saved after configured number of trainings
+        if self.model_training_counter % self.eval_config.eval_step_interval == 0:
             if self.eval_config.plot_loss:
                 self.evaluation.plot_losses(self.loss_over_time)
             if self.eval_config.plot_rewards:
                 self.evaluation.plot_rewards(self.rewards_over_time)
-        # check if model should be saved
-        if (self.counter % self.save_config.steps_save) == 0:
+
+        # check if model should be saved after configured number of trainings
+        if self.model_training_counter % self.save_config.steps_save == 0:
             self.save_model()
-        # save the input tuple in buffer
-        transformed_tuple = np.reshape(np.array([tuple[0], tuple[2], tuple[3], tuple[1]]), [1, 4])
-        self.myBuffer.add(transformed_tuple)
-        # get fields from the input tuple
-        self.counter += 1
-        if self.counter < self.pre_train_steps or self.counter % self.train_interval != 1 \
-                or self.counter > self.model_config.stop_training:
+
+        self.model_training_counter += 1
+
+        # check if batch training should be executed
+        if self.model_training_counter < self.pre_train_steps or self.model_training_counter % self.train_interval != 1 \
+                or self.model_training_counter > self.model_config.stop_training:
             return
 
         # We use Double-DQN training algorithm
         # get sample of buffer for training
-        trainBatch = self.myBuffer.sample(self.model_config.batch_size)
+        train_batch = self.exp_buffer.sample(self.model_config.batch_size)
         # feed resulting state and keep prob of 1 to predict action
         Q1 = self.sess.run(self.q_net.predict,
-                           feed_dict={self.q_net.inputs: np.vstack(trainBatch[:, 3]), self.q_net.keep_per: 1.0})
+                           feed_dict={self.q_net.inputs: np.vstack(train_batch[:, 3]), self.q_net.keep_per: 1.0})
         # get q-values of target network with the resulting state
         Q2 = self.sess.run(self.target_net.Q_out,
-                           feed_dict={self.target_net.inputs: np.vstack(trainBatch[:, 3]),
+                           feed_dict={self.target_net.inputs: np.vstack(train_batch[:, 3]),
                                       self.target_net.keep_per: 1.0})
         # multiplier to add if the episode ended
         # makes reward 0 if episode ended. simulation specific
         # target-q-values of batch for choosing prediction of q-network
-        doubleQ = Q2[range(self.model_config.batch_size), Q1]  # target_q-values for the q-net predicted action
+        double_q = Q2[range(self.model_config.batch_size), Q1]  # target_q-values for the q-net predicted action
         # target q value calculation according to q-learning
-        targetQ = trainBatch[:, 2] + (
-            self.model_config.y * doubleQ)
+        target_q = train_batch[:, 2] + (self.model_config.y * double_q)
         # update the q-network model by giving the target-q-values, the input states and the chosen actions
         _, loss = self.sess.run([self.q_net.updateModel, self.q_net.loss],
-                                feed_dict={self.q_net.inputs: np.vstack(trainBatch[:, 0]), self.q_net.nextQ: targetQ,
-                                           self.q_net.keep_per: 1.0, self.q_net.actions: trainBatch[:, 1]})
-        # save the loss function value (squared error from q and targete value)
+                                feed_dict={self.q_net.inputs: np.vstack(train_batch[:, 0]), self.q_net.nextQ: target_q,
+                                           self.q_net.keep_per: 1.0, self.q_net.actions: train_batch[:, 1]})
+        # save the loss function value (squared error from q and target value)
         self.loss_over_time.append(loss)
         # update the target network
         self.updateTarget(self.targetOps, self.sess)
@@ -270,6 +282,7 @@ class ExperienceBuffer(object):
     the experience buffer saves all experiences. these experiences can later be revisited for training the model.
     therefore the training batches do not correlate because not the experiences that follow on after another
     are used for training
+    TODO double check if this implementation is efficient and correct!
     """
 
     def __init__(self, buffer_size=10000):
@@ -319,17 +332,18 @@ class Evaluation(object):
     def plot_rewards(self, rewards_over_time):
         """
         plots and saves the rewards over time and the mean rewards
-        :return: 
         """
         if not os.path.exists(self.model_folder):
             os.makedirs(self.model_folder)
         if len(rewards_over_time) == 0:
             return
+        # reward
         df = pd.DataFrame(numpy.array(rewards_over_time), columns=["rewards"])
         df.plot(style="o")
         plt.xlabel("steps")
         plt.savefig(self.model_folder + "/rewards_plot.png")
         plt.close()
+        # mean rewards
         means = []
         batch = self.eval_config.eval_mean_size
         for i in range(0, len(rewards_over_time) / batch):
@@ -351,12 +365,16 @@ class Evaluation(object):
             os.makedirs(self.model_folder)
         if len(loss_over_time) == 0:
             return
+
+        #loss error
         df = pd.DataFrame(numpy.array(loss_over_time), columns=["loss error"])
         df.plot(legend=False)
         plt.xlabel("training steps")
         plt.ylabel("loss error")
         plt.savefig(self.model_folder + "/loss_error_plot.png")
         plt.close()
+
+        # mean loss
         means = []
         batch = self.eval_config.eval_mean_size
         for i in range(0, len(loss_over_time) / batch):

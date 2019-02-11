@@ -82,7 +82,19 @@ class ReinforcementAlgorithmBase(object):
 
         return self.allQ
 
-    def train_model(self, tuple):
+    def add_sample(self, tuple, consider_reward=True):
+        """
+        Add a new training sample to the algorithm
+        :param tuple: tuple of last state, new state, last action and the resulting reward
+        :param: consider_consider_reward: set True if this is a real sample which should be considered for long-term
+                reward calculations
+        """
+        raise NotImplementedError
+
+    def train_model(self):
+        """
+        This hook has to be filled with the training algorithm, it should consider the data added with add_sample
+        """
         raise NotImplementedError
 
     def save_model(self):

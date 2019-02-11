@@ -38,9 +38,6 @@ class RLComponent(object):
         self.number_outputs = -1
         self.number_inputs = -1
 
-        # current experience batch tuples (old_state,new_state,action,reward)
-        self.reward_list = []
-
         self._unregistered = False
         rospy.on_shutdown(self.unregister)  # cleanup hook also for saving the model.
 
@@ -66,18 +63,23 @@ class RLComponent(object):
         state for training)
         :param input_state:
         :param negative_states:
-        :return:
+        :return: ActivationState
         """
         if negative_states is None:
             negative_states = []
+
         try:
             self.check_if_model_is_valid(input_state.num_inputs, input_state.num_outputs)
-            # save current input state and update the model
+            # save current input state
             self.save_state(input_state)
-            # update the last state
+            # update the last state, which would also be the starting point for the negative states
             self.last_state = input_state.input_state
+            # save negative states if available
             for state in negative_states:
-                self.save_state(state)
+                self.save_state(state, is_extra_state=True)
+            # update the model
+            self.model.train_model()
+
             # transform the input state and get activation
             transformed_input = numpy.array(input_state.input_state).reshape(([1, len(input_state.input_state)]))
             activations = self.model.feed_forward(transformed_input)
@@ -92,11 +94,13 @@ class RLComponent(object):
             rhbplog.logerr(e.message)
             return None
 
-    def save_state(self, input_state):
+    def save_state(self, input_state, is_extra_state=False):
         """
-        save the old_state,new_state,action,reward tuple in a list for batch updating of the model
+        save the old_state,new_state,action,reward tuple for batch updating of the model
         :param input_state: current state input (positive or negative)
         :type input_state: InputState
+        :param is_extra_state: set to True if this is a special extra state (e.g. negative states) that is recorded but
+                               not necessarily has been explored/executed
         """
         if self.last_state is None:
             return
@@ -104,8 +108,7 @@ class RLComponent(object):
         new = numpy.array(input_state.input_state).reshape(([1, len(input_state.input_state)]))
         reward_tuple = (last, new, input_state.last_action, input_state.reward)
 
-        self.reward_list.append(reward_tuple)
-        self.update_model()
+        self.model.add_sample(tuple=reward_tuple, consider_reward=not is_extra_state)
 
     def check_if_model_is_valid(self, num_inputs, num_outputs):
         """
@@ -121,17 +124,6 @@ class RLComponent(object):
             if (not self.number_outputs == num_outputs) or (not self.number_inputs == num_inputs):
                 self.init_model(num_inputs, num_outputs)
 
-    def update_model(self):
-        """
-        starts the training in the model for each tuple. 
-        Note: the updating of the weights in the algorithm happens
-        in a specified interval
-        :return: 
-        """
-        for element in self.reward_list:
-            self.model.train_model(element)
-        self.reward_list = []
-
     def init_model(self, num_inputs, num_outputs):
         """
         inits the model with the specified parameters
@@ -146,8 +138,6 @@ class RLComponent(object):
         self.last_state = None
 
         self.model.start_nn(num_inputs, num_outputs)
-
-        self.reward_list = []
 
         self.is_model_init = True
 

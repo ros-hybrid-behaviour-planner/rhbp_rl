@@ -147,10 +147,11 @@ class TransitionConfig(object):
             self.use_wishes = rospy.get_param("~use_wishes", False)  # if the transformer should use wishes as input
             self.use_true_values = rospy.get_param("~use_true_values",
                                                    True)  # if the transformer should use conditions as input
-            self.max_activation = rospy.get_param("~max_activation", 1)  # maximal RL activation
-            self.min_activation = rospy.get_param("~min_activation", 0)  # minimal RL activation
+            self.max_activation = rospy.get_param("~max_activation", 1)  # maximal RL activation/reinforcement
+            self.min_activation = rospy.get_param("~min_activation", 0)  # minimal RL activation/reinforcement
             self.weight_rl = rospy.get_param("~weight_rl", 1.0)  # weight of the rl component
             self.use_negative_states = rospy.get_param("~use_negative_states", True)
+            self.negative_reward = rospy.get_param("~negative_reward", 0)  # negative reward for negative_states
             self.use_node = rospy.get_param("~use_node", False)  # if a own node should be used for the rl_component
         except Exception:
             self.use_wishes = False
@@ -159,4 +160,5 @@ class TransitionConfig(object):
             self.min_activation = 0
             self.weight_rl = 1.0
             self.use_negative_states = True
+            self.negative_reward = 0
             self.use_node = False
