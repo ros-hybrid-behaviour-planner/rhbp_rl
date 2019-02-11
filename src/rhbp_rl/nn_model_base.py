@@ -56,7 +56,7 @@ class ReinforcementAlgorithmBase(object):
         # TODO using just the number of inputs/outputs can also lead to weird results?! It would be better to use proper identifiers
 
         self.model_folder = 'models/' + str(num_inputs) + '/' + str(num_outputs) + '/' + self.name
-        self.model_path = self.model_folder + '/rl-model' + self.name + "_" + str(num_inputs) + "_" + str(num_outputs) \
+        self.model_path = self.model_folder + 'rl-model' + self.name + "_" + str(num_inputs) + "_" + str(num_outputs) \
                           + '-1000.meta'  # TODO Why this postfix?
 
         if not os.path.exists(self.model_folder):

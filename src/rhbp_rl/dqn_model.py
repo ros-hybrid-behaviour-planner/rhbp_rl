@@ -51,6 +51,8 @@ class DQNModel(ReinforcementAlgorithmBase):
         self.reward_saver = []
         self.loss_over_time = []
         self.rewards_over_time = []
+        self.num_inputs = 0
+        self.num_outputs = 0
 
     def reset_model_values(self):
         self.model_training_counter = 0
@@ -83,11 +85,12 @@ class DQNModel(ReinforcementAlgorithmBase):
             # with tf.Session() as self.sess:
             self.sess = tf.Session()
             # init all variables
-            self.sess.run(self.init)
-            # run target operations
-            self.updateTarget(self.targetOps, self.sess)
-            self.num_inputs = num_inputs
-            self.num_outputs = num_outputs
+
+        self.sess.run(self.init)
+        # run target operations
+        self.updateTarget(self.targetOps, self.sess)
+        self.num_inputs = num_inputs
+        self.num_outputs = num_outputs
 
     def feed_forward(self, input_state):
         """
@@ -105,13 +108,13 @@ class DQNModel(ReinforcementAlgorithmBase):
         :param num_outputs: number of output values of the network
         :return: 
         """
-
-        # restore the session
         self.sess = tf.Session()
-        # check for model with this dimensions
+
+        self.initialize_model(num_inputs, num_outputs, load_mode=True)
+
         self.saver = tf.train.import_meta_graph(self.model_path)
-        self.initialize_model(num_inputs, num_outputs, load_mode=False)
         self.saver.restore(self.sess, tf.train.latest_checkpoint(self.model_folder))
+
         self.load_buffer()
         rhbplog.loginfo("model restored")
 
