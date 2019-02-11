@@ -18,6 +18,7 @@ class InputStateTransformer(object):
     def __init__(self, manager):
         self._manager = manager
         self.conf = TransitionConfig()
+        self.last_operational_goals = []
 
     def calculate_reward(self):
         """
@@ -25,10 +26,26 @@ class InputStateTransformer(object):
         a reward value. 
         :return: reward value
         """
+
         reward_value = 0
-        for goal in self._manager.operational_goals:
-            goal_value = goal.fulfillment * goal.priority
+
+        current_operational_goals = self._manager.operational_goals
+
+        # we are using goal.priority+1, because the default priority is 0.
+
+        # collect progress reward
+        for goal in current_operational_goals:
+            goal_value = goal.fulfillment * (goal.priority+1)
             reward_value += goal_value
+        # collect reward from completed achievement (non-permanent) goals
+        for goal in self.last_operational_goals:  # check goals that have been operational before
+            if goal not in current_operational_goals and not goal.isPermanent:
+                # TODO here we could also use some max activation factor or similar value, right now its just 1 and
+                # hence omitted
+                goal_value = goal.priority+1
+                reward_value += goal_value
+        self.last_operational_goals = self._manager.operational_goals
+
         return reward_value
 
     def behaviour_to_index(self, name):
