@@ -33,8 +33,8 @@ class DQNModel(ReinforcementAlgorithmBase):
         super(DQNModel, self).__init__(name)
         # Set learning parameters
         self.model_config = DQNConfig()
-        self.nn_config = NNConfig()
         self.save_config = SavingConfig()
+        self.nn_config = NNConfig()
         self.evaluation = Evaluation(self.model_folder)
         self.eval_config = EvaluationConfig()
         self.exploration_config = ExplorationConfig()
@@ -70,8 +70,8 @@ class DQNModel(ReinforcementAlgorithmBase):
         if not load_mode:
             tf.reset_default_graph()
         # initialize two networks. q-network and target q-network
-        self.q_net = QNetwork(num_inputs, num_outputs)
-        self.target_net = QNetwork(num_inputs, num_outputs)
+        self.q_net = QNetwork(num_inputs, num_outputs, nn_config=self.nn_config)
+        self.target_net = QNetwork(num_inputs, num_outputs, nn_config=self.nn_config)
         self.init = tf.global_variables_initializer()
         # returns all variables created with trainable=True
         trainables = tf.trainable_variables()
@@ -242,8 +242,8 @@ class QNetwork(object):
     this class implements the neural network. It is called for the Q-Network, but also for the target network.
     """
 
-    def __init__(self, number_inputs, number_outputs, name="q"):
-        self.nn_config = NNConfig()
+    def __init__(self, number_inputs, number_outputs, nn_config, name="q"):
+        self.nn_config = nn_config
         self.name = name
         # These lines establish the feed-forward part of the network used to choose actions
         # these describe the observation (input),
@@ -251,14 +251,25 @@ class QNetwork(object):
         self.Temp = tf.placeholder(shape=None, dtype=tf.float32)
         self.keep_per = tf.placeholder(shape=None, dtype=tf.float32)
         # the layers that define the nn
-        # one_hot_inputs = tf.one_hot(self.inputs,number_inputs,dtype=tf.float32)
-        self.hidden = slim.fully_connected(self.inputs, 64, activation_fn=tf.nn.tanh,
-                                           biases_initializer=tf.random_uniform_initializer())
+
+        self.hidden = []
+        for i in range(self.nn_config.hidden_layer_amount):
+            if i > 0:
+                last_layer = self.hidden[-1]
+            else:
+                last_layer = self.inputs
+            self.hidden.append(slim.fully_connected(last_layer, self.nn_config.hidden_layer_cell_amount,
+                                                    activation_fn=tf.nn.tanh,
+                                                    biases_initializer=tf.random_uniform_initializer()))
+        if self.nn_config.hidden_layer_amount > 0:
+            last_layer = self.hidden[-1]
+        else:
+            last_layer = self.inputs
+
         # drop tensors out and scales others by probability of self.keep_per
         # layer for computing the q_values
 
-        self.Q_out = slim.fully_connected(self.hidden, number_outputs, activation_fn=None,
-                                          biases_initializer=None)
+        self.Q_out = slim.fully_connected(last_layer, number_outputs, activation_fn=None, biases_initializer=None)
         # prediction is highest q-value
         self.predict = tf.argmax(self.Q_out, 1)
         # compute the softmax activations.

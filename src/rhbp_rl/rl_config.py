@@ -21,10 +21,19 @@ class NNConfig(object):
             self.use_adam_optimizer = rospy.get_param("~use_adam_optimizer", True)
             self.learning_rate_optimizer = rospy.get_param("~learning_rate_optimizer",
                                                            0.001)  # learning rate of the optimizer
+            self.hidden_layer_amount = rospy.get_param("~hidden_layer_amount", 1)
+            self.hidden_layer_cell_amount = rospy.get_param("~hidden_layer_cell_amount", 64)
 
         except Exception:  # catches if no RosService was found
             self.learning_rate_optimizer = 0.001
             self.use_adam_optimizer = True
+            self.hidden_layer_amount = 1
+            self.hidden_layer_cell_amount = 64
+
+        rhbplog.loginfo("use_adam_optimizer: %s", self.use_adam_optimizer)
+        rhbplog.loginfo("learning_rate_optimizer: %2.3f", self.learning_rate_optimizer)
+        rhbplog.loginfo("hidden_layer_amount: %d", self.hidden_layer_amount)
+        rhbplog.loginfo("hidden_layer_cell_amount: %d", self.hidden_layer_cell_amount)
 
 
 class DQNConfig(object):
