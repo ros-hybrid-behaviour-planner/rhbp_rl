@@ -104,14 +104,14 @@ class EvaluationConfig(object):
     def __init__(self):
         try:
             self.eval_step_interval = rospy.get_param("~eval_step_interval",
-                                                      500)  # intervall for plotting current results
+                                                      500)  # interval for plotting current results
             self.eval_mean_size = rospy.get_param("~eval_mean_size",
                                                   5000)  # number of plotting mean for loss and rewards
 
             self.plot_rewards = rospy.get_param("~plot_rewards", False)  # if rewards should be plotted
-            self.plot_loss = rospy.get_param("~plot_loss", True)  # if loss should be plotted
+            self.plot_loss = rospy.get_param("~plot_loss", False)  # if loss should be plotted
         except Exception:
-            self.eval_step_interval = 10000  # intervall for plotting current results
+            self.eval_step_interval = 10000  # interval for plotting current results
             self.eval_mean_size = 5000  # number of plotting mean for loss and rewards
             self.plot_rewards = True  # if rewards should be plotted
             self.plot_loss = True  # if loss should be plotted
