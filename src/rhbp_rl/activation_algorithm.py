@@ -108,11 +108,12 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         # receive the executed action from the executed behaviour
         last_action = self._manager.executed_behaviours
         if len(last_action) == 0:
-            return False, None, None, None, None, None
-        last_action_index = self.input_transformer.behaviour_to_index(
-            last_action[0])  # XXX can be expanded here to multiple executed actions
-        if last_action_index is None:
-            return False, None, None, None, None, None
+            last_action_index = None   # None will result in only feeding forward from the current situation.
+        else:
+            last_action_index = self.input_transformer.behaviour_to_index(
+                last_action[0])  # XXX can be expanded here to multiple executed actions
+            if last_action_index is None:
+                return False, None, None, None, None, None
 
         return True, num_inputs, num_outputs, input_state, reward, last_action_index
 

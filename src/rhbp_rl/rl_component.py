@@ -62,6 +62,7 @@ class RLComponent(object):
         Determine the activation/reinforcement for the given input states, save the state (combined with last
         state for training)
         :param input_state:
+        :type input_state: InputState
         :param negative_states:
         :return: ActivationState
         """
@@ -70,15 +71,17 @@ class RLComponent(object):
 
         try:
             self.check_if_model_is_valid(input_state.num_inputs, input_state.num_outputs)
-            # save current input state
-            self.save_state(input_state)
-            # update the last state, which would also be the starting point for the negative states
-            self.last_state = input_state.input_state
-            # save negative states if available
-            for state in negative_states:
-                self.save_state(state, is_extra_state=True)
-            # update the model
-            self.model.train_model()
+
+            if input_state.last_action:  # only save state if we have a valid prior action.
+                # save current input state
+                self.save_state(input_state)
+                # update the last state, which would also be the starting point for the negative states
+                self.last_state = input_state.input_state
+                # save negative states if available
+                for state in negative_states:
+                    self.save_state(state, is_extra_state=True)
+                # update the model
+                self.model.train_model()
 
             # transform the input state and get activation
             transformed_input = numpy.array(input_state.input_state).reshape(([1, len(input_state.input_state)]))
