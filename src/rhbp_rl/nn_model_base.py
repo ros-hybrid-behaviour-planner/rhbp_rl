@@ -108,9 +108,10 @@ class ReinforcementAlgorithmBase(object):
         if not os.path.exists(self.model_folder):
             os.makedirs(self.model_folder)
 
-        # Save model weights to disk
-        # cut out last 5 character as they would be twice
-        self.saver.save(self.sess, self.model_path[0:-5])
+        if self.saver:
+            # Save model weights to disk
+            # cut out last 5 character as they would be twice
+            self.saver.save(self.sess, self.model_path[0:-5])
 
         if self.save_conf.save_buffer:
             self.save_buffer()
