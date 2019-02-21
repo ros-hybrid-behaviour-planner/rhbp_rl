@@ -10,6 +10,19 @@ import utils.rhbp_logging
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
 
+class GoalInfo(object):
+    """
+    Simple helper class we use to temporarily store goal information we need for reward calculation
+    """
+
+    def __init__(self, name, fulfillment, is_permanent, priority, satisfaction_threshold):
+        self.name = name
+        self.fulfillment = fulfillment
+        self.is_permanent = is_permanent
+        self.priority = priority
+        self.satisfaction_threshold = satisfaction_threshold
+
+
 class InputStateTransformer(object):
     """
     this class gets called in the activation algorithm and transform the rhbp components into the InputStateMessage
@@ -18,7 +31,7 @@ class InputStateTransformer(object):
     def __init__(self, manager):
         self._manager = manager
         self.conf = TransitionConfig()
-        self.last_operational_goals = []
+        self._last_operational_goals = {}
 
     def calculate_reward(self):
         """
@@ -29,22 +42,36 @@ class InputStateTransformer(object):
 
         reward_value = 0
 
-        current_operational_goals = self._manager.operational_goals
+        # we collect the information we need about the goals in a more slim data structure
+        current_operational_goals = {g.name: GoalInfo(g.name, g.fulfillment, g.isPermanent, g.priority,
+                                                      g.satisfaction_threshold)
+                                     for g in self._manager.operational_goals}
 
         # we are using goal.priority+1, because the default priority is 0.
 
-        # collect progress reward
-        for goal in current_operational_goals:
-            goal_value = goal.fulfillment * (goal.priority+1)
-            reward_value += goal_value
-        # collect reward from completed achievement (non-permanent) goals
-        for goal in self.last_operational_goals:  # check goals that have been operational before
-            if goal not in current_operational_goals and not goal.isPermanent:
-                # TODO here we could also use some max activation factor or similar value, right now its just 1 and
-                # hence omitted
-                goal_value = goal.priority+1
-                reward_value += goal_value
-        self.last_operational_goals = self._manager.operational_goals
+        # first we check the difference starting from former registered goals
+        for name, g in self._last_operational_goals.iteritems():  # check goals that have been operational before
+            # goal is not anymore listed in operational goals.
+            if name not in current_operational_goals:
+                # collect reward from completed achievement (non-permanent) goals
+                if not g.is_permanent:
+                    # here we just use the satisfaction threshold by default 1
+                    reward_value += g.satisfaction_threshold * (g.priority+1)
+            else:  # if it is still operational we compare the difference of fulfillment (current-last)
+                fulfillment_delta = current_operational_goals[g.name].fulfillment - g.fulfillment
+                reward_value += fulfillment_delta * (g.priority+1)
+
+        # next we have to calculate the reward for all goals that have not yet been registered in the former step
+        for name, goal in current_operational_goals.iteritems():
+            if name not in self._last_operational_goals:
+                if goal.satisfaction_threshold < goal.fulfillment:
+                    fulfillment_delta = goal.satisfaction_threshold
+                else:
+                    fulfillment_delta = goal.fulfillment
+                reward_value += fulfillment_delta * (goal.priority + 1)
+                # the else case was already addressed in the loop above
+
+        self._last_operational_goals = current_operational_goals
 
         return reward_value
 
