@@ -38,3 +38,10 @@ Here, it would be the goal to refactor this in a way that rhbp_core does not con
 * **dqn_model.py:** Actual DQN implementation. (Q-Network, ExperienceBuffer, DDQN)
 * **rl_component.py:** ROS component that feeds the abstract input into the DQN algorithms and interprets the results.
 * **rl_config.py:** Container classes for parameters of DQN and exploration.
+
+
+###Ideas for changes in basic RL architecture:
+- Refactor some things, see comments, todos and suggestions in code 
+- Create a database module which will work with Input-transformer to provide a storage and history which can also be dumped into file if needed, this module will supply the training examples to neural network algorithm
+- Think about whether we need nn_model_base and dqn_model as different nodes and whether the functionale that they currently have is appropriate. 
+- Write an interface for DQN that will allow to use custom NNs for Q-Learning and training give the satisfaction

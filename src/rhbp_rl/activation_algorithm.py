@@ -230,7 +230,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         num_actions = len(self._manager.behaviours)
         # if the rl activation is not used dont calculate the values and set all to zero
         if self.weight_rl <= 0:  # TODO why this weight comes from a different source?
-            self.activation_rl = [0] * num_actions  # set all activations to 0
+            self.activation_rl = [0] * num_actions  # set all activations to 0 
             return
 
         # get the activations from the rl_component via service
@@ -242,7 +242,8 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         # TODO Idea: Why not test first for exploration? Test to move it before get_activation_from_rl_node.Maybe error
         #  check " len(self.activation_rl) == 0"could make problems. Getting activation is also saving the current state
         # hence it has to be called but maybe we can avoid the feed forward through a flag in the service?!
-
+        # GOZMAN: Yes, in fact, there is generally an unhealthy pattern of using object members instead of return values, 
+        # it makes code a lot harder to read, TODO refactor it in way more functional way
         # check if exploration chooses randomly best action
         changed, best_action = self.exploration_strategies.e_greedy_pre_train(self._step_counter, num_actions)
         if changed:

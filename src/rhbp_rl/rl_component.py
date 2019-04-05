@@ -71,7 +71,8 @@ class RLComponent(object):
 
         try:
             self.check_if_model_is_valid(input_state.num_inputs, input_state.num_outputs)
-
+            # GOZMAN saving state during the getting activation for next one is not a great idea
+            # TODO refactor it by decoupling this operation (might be tricky)
             if input_state.last_action:  # only save state if we have a valid prior action.
                 # save current input state
                 self.save_state(input_state)
