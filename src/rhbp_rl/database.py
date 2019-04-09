@@ -1,9 +1,10 @@
 class Database():
     '''
     Database class to provide storage for examples for training.
-    Expirience buffer that will be also a service potentially
+    Experience buffer that will be also a service potentially
     '''
     def __init__(self):
+        self.examples = []
         pass
 
 
@@ -25,12 +26,30 @@ class Database():
     def get_batch(self, length):
         '''
         Get a batch of examples to train
+        :param length: the number of examples in batch
         '''
         pass
 
 
     def dump_db(self, path):
         '''
-        
+        Dumps the gathered expierience in a suitable file form that allow it to be read from
+        :param path: where to save the database
         '''
         pass
+
+
+    def load_db(self, path):
+        '''
+        Load database from the file 
+        :param path: the path to file with saved db material
+        '''
+        pass
+
+    def clean_db(self):
+        '''
+        Removes all examples from database
+        '''
+        self.examples = []
+
+    

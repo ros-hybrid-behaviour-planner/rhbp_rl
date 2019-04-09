@@ -12,7 +12,7 @@ class AbstractApproximator(ABC):
     @abstractmethod
     def predict(self, input_state):
         '''
-        This is a basic predict method thatz receives recieves the state and returns the approximated values
+        This is a basic predict method that recieves the state and returns the approximated values
         :param input_state: the observation to infer from
         :return: approximation of desired values (e.g. Q-values, state value etc)
         '''
@@ -42,3 +42,20 @@ class AbstractApproximator(ABC):
         :param path: path to checkpoint file
         '''
         pass
+
+
+    @abstractmethod
+    def save_buffer(self, path):
+        '''
+        Saves examples to a certain path
+        :param path: path to file where to save examples
+        '''
+        pass
+
+    @abstractmethod
+    def load_buffer(self, path):
+        '''
+        Load examples to buffer
+        :param path: path to examples file
+        '''
+        pass       

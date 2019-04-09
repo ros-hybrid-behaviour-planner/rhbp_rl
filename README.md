@@ -42,6 +42,15 @@ Here, it would be the goal to refactor this in a way that rhbp_core does not con
 
 ###Ideas for changes in basic RL architecture:
 - Refactor some things, see comments, todos and suggestions in code 
-- Create a database module which will work with Input-transformer to provide a storage and history which can also be dumped into file if needed, this module will supply the training examples to neural network algorithm
-- Think about whether we need nn_model_base and dqn_model as different nodes and whether the functionale that they currently have is appropriate. 
+- (Not sure about that)Create a database module which will work with Input-transformer to provide a storage and history which can also be dumped into file if needed, this module will supply the training examples to neural network algorithm
+- Change nn_model_base to Abstract Approximator, make it an actual abstact class, see next points
 - Write an interface for DQN that will allow to use custom NNs for Q-Learning and training give the satisfaction
+
+For the genericness and higher flexibility with the application for deep learning to reinforcement learning the access to the deep model should be completely generic and not dependent on the actual implementation of the model. This includes usage of the different frameworks for deep learning. This creates a design question of what kind of interface can be created in order to completely abstract the usage of model my the agent. There is a number of functionale that is needed irregardless of specific architecture:
+- Prediction: this the main function, getting the infered values from the neural network.
+- Training: training is needed to increase the quality of predictions. The question, however, stands whether the database (training samples) should be completely decoupled from the model or not. Considering the genericness of the samples and independence of the data points from the neural network model (inputs are always the same, predicated on the task RHBP is trying to solve), it would be better to indeed abstact the database from network. Training method with then take the full example in order to run backpropagation and learn. The deep learning necessitates training on batches instead of single examples, this problem can be solved by providing a batch length as a configuration property to the rl controller
+- Saving model
+- Loading model
+GOAL OF THIS IS TO MAKE IT POSSIBLE TO USE DIFFERENT NN FRAMEWORKS
+- Transition to tensorflow-2.00
+- Abstact RL-Activation algo into RL controller and activation algo (MAKE THIS MORE SPECIFIC, maybe no new abstractions are needed and we just need to juggle some functionale) THIS MIGHT HELP IN CASES WHERE WE WANT TO GET MORE DIFFERNET RL ALGOS IN THE FUTURE
