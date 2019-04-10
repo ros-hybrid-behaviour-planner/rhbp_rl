@@ -62,11 +62,12 @@ SO THE GOAL WOULD BE TO REFACTOR AND COME TO THE SAME FUNCTIONALE THAT WE CURREN
 The actual list to send:
 - Decouple example storage and approximator, currently buffer is part of dqn_network module, which, I think, is not necessary if we want to be able to use different approximators easely swapping them.
 - For the genericness and higher flexibility with the application for deep learning to reinforcement learning the access to the deep model should be completely generic and not dependent on the actual implementation of the model. This includes usage of the different frameworks for deep learning. This creates a design question of what kind of interface can be created in order to completely abstract the usage of model by the agent. There is a number of functionale that is needed irregardless of specific architecture:
-1. Prediction: this the main function, getting the infered values from the neural network.
-2. Training: training is needed to increase the quality of predictions. The question, however, stands whether the database (training samples) should be completely decoupled from the model or not. Considering the genericness of the samples and independence of the data points from the neural network model (inputs are always the same, predicated on the task RHBP is trying to solve), it would be better to indeed abstact the database from network. Training method with then take the full example in order to run backpropagation and learn. The deep learning necessitates training on batches instead of single examples, this problem can be solved by providing a batch length as a configuration property to the rl controller
-2. Saving model
-3. Loading model
-This approach was partially taken but nn_model_base still has some in-built implemented functions and is not completely abstract
+    1. Prediction
+    2. Training 
+    2. Saving model
+    3. Loading model
+- This approach would necessitate to move some functions to rl_component
+This approach has been partially taken already but nn_model_base still has some in-built implemented functions and is not completely abstract
 Above mentioned changes would allow to implement neural networks using any kinds of frameworks. Fot example, basic solution can be implemented in tensorflow 2, considering that it provides much better tools for fast prototyping, but, in general, the point would be to make the neural network pluggable given that it is implemented with correct inputs and outputs
 - RL Activation Algo has a lot of TODOs and suggestions which are, in my opinion, mostly valid and should be implemented. It also uses a lot of class variable instead of being written in a more functional way which makes a bit harder to follow, debug and change. Refactoring it in a more functional way would be a good step, in my opinion. 
-- It is suggested im exploration strategies that they should be changed to a hierarchy of classes, I agree with this suggestion.
+- It is suggested in exploration strategies that they should be changed to a hierarchy of classes, I agree with this suggestion.
