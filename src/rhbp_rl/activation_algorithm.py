@@ -10,7 +10,7 @@ import rospy
 import subprocess
 import numpy as np
 from rhbp_core.msg import Activation
-from exploration_strategies import ExplorationStrategies
+from exploration_strategies import EpsilonGreedyPreTrain
 from input_state_transformer import InputStateTransformer
 from rl_config import TransitionConfig
 
@@ -58,7 +58,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
                 self.start_rl_class()
                 rhbplog.loginfo("Using RL component directly.")
         # implements different exploration strategies
-        self.exploration_strategies = ExplorationStrategies()
+        self.exploration_strategies = EpsilonGreedyPreTrain()
 
         self.explored_in_last_step = False
 
@@ -245,7 +245,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         # GOZMAN: Yes, in fact, there is generally an unhealthy pattern of using object members instead of return values, 
         # it makes code a lot harder to read, TODO refactor it in way more functional way
         # check if exploration chooses randomly best action
-        changed, best_action = self.exploration_strategies.e_greedy_pre_train(self._step_counter, num_actions)
+        changed, best_action = self.exploration_strategies.get_strategy(self._step_counter, num_actions)
         if changed:
             self.activation_rl = [0] * num_actions  # set all activations to 0
             self.activation_rl[best_action] = self.config.max_activation  # only support the one to be explored

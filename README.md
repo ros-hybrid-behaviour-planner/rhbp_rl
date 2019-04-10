@@ -40,11 +40,11 @@ Here, it would be the goal to refactor this in a way that rhbp_core does not con
 * **rl_config.py:** Container classes for parameters of DQN and exploration.
 
 
-###Ideas for changes in basic RL architecture:
+###Ideas for changes in basic RL architecture and codebase:
 - Refactor some things, see comments, todos and suggestions in code 
 - (Not sure about that)Create a database module which will work with Input-transformer to provide a storage and history which can also be dumped into file if needed, this module will supply the training examples to neural network algorithm
 - Change nn_model_base to Abstract Approximator, make it an actual abstact class, see next points
-- Write an interface for DQN that will allow to use custom NNs for Q-Learning and training give the satisfaction
+- Write an interface for DQN that will allow to use custom NNs for Q-Learning and training
 
 For the genericness and higher flexibility with the application for deep learning to reinforcement learning the access to the deep model should be completely generic and not dependent on the actual implementation of the model. This includes usage of the different frameworks for deep learning. This creates a design question of what kind of interface can be created in order to completely abstract the usage of model my the agent. There is a number of functionale that is needed irregardless of specific architecture:
 - Prediction: this the main function, getting the infered values from the neural network.
@@ -52,5 +52,9 @@ For the genericness and higher flexibility with the application for deep learnin
 - Saving model
 - Loading model
 GOAL OF THIS IS TO MAKE IT POSSIBLE TO USE DIFFERENT NN FRAMEWORKS
-- Transition to tensorflow-2.00
+- Transition to tensorflow-2.0.0
 - Abstact RL-Activation algo into RL controller and activation algo (MAKE THIS MORE SPECIFIC, maybe no new abstractions are needed and we just need to juggle some functionale) THIS MIGHT HELP IN CASES WHERE WE WANT TO GET MORE DIFFERNET RL ALGOS IN THE FUTURE
+- DQN class is now both model and algo, modularise them a bit further into RL ALGO and NN
+- Refactor activation algorithm in a more functional way (currently uses quite a lof of global variables, hard to follow in a top down approach)
+SO THE GOAL WOULD BE TO REFACTOR AND COME TO THE SAME FUNCTIONALE THAT WE CURRENTLY HAVE
+- Exploration strategies: creatge a hierarchy of classes as suggested, create an interface and modularise
