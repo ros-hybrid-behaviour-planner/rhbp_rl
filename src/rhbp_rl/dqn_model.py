@@ -23,6 +23,7 @@ from tensorflow.contrib import slim
 
 from nn_model_base import ReinforcementAlgorithmBase
 from rl_config import NNConfig, EvaluationConfig, SavingConfig, DQNConfig, ExplorationConfig
+from experience import ExperienceBuffer
 
 import utils.rhbp_logging
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
@@ -37,7 +38,6 @@ class DQNModel(ReinforcementAlgorithmBase):
         self.nn_config = NNConfig()
         self.evaluation = Evaluation(self.model_folder)
         self.eval_config = EvaluationConfig()
-        self.exploration_config = ExplorationConfig()
         self.train_interval = self.model_config.train_interval
         self.pre_train_steps = self.model_config.pre_train  # Number of steps used before training updates begin.
         self.q_net = None
@@ -288,51 +288,6 @@ class QNetwork(object):
         else:
             trainer = tf.train.GradientDescentOptimizer(learning_rate=self.nn_config.learning_rate_optimizer)
         self.updateModel = trainer.minimize(self.loss)
-
-
-# class for revisiting experiences
-class ExperienceBuffer(object):
-    """
-    the experience buffer saves all experiences. these experiences can later be revisited for training the model.
-    therefore the training batches do not correlate because not the experiences that follow on after another
-    are used for training
-    TODO double check if this implementation is efficient and correct!
-    """
-
-    def __init__(self, buffer_size=10000):
-        self.buffer = []
-        self.buffer_size = buffer_size
-        self.counter = 0
-
-    def reset(self):
-        """
-        reset the variables
-        :return: 
-        """
-        self.buffer = []
-        self.counter = 0
-
-    def add(self, experience):
-        """
-        add a new experience
-        :param experience: contains old state, new state, reward and action
-        :return: 
-        """
-        self.counter += 1
-        if len(self.buffer) + len(experience) >= self.buffer_size:
-            self.buffer[0:(len(experience) + len(self.buffer)) - self.buffer_size] = []
-        self.buffer.extend(experience)
-
-    # get a random sample of the buffer
-    def sample(self, size):
-        """
-        return a random selection of experiences with the specified size
-        :param size: determines how large the sample should be
-        :return: 
-        """
-        sample = np.reshape(np.array(random.sample(self.buffer, size)), [size, 4])
-        return sample
-
 
 class Evaluation(object):
     """

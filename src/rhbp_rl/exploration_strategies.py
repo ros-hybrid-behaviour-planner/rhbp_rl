@@ -4,12 +4,11 @@ implements the different exploration strategies
 """
 
 import numpy
-
+from abc import ABCMeta, abstractmethod
 from rl_config import ExplorationConfig
-from abc import ABC, abstractmethod
 
 
-class ExplorationStrategy(ABC):
+class ExplorationStrategy(object):
     """
     this class implements different strategies for exploring. 
     The random exploration chooses always a random action. Therefore, this strategy is not practical to use. 
@@ -26,13 +25,14 @@ class ExplorationStrategy(ABC):
     #ADDRESSED
     # TODO better make this a hierarchy of classes implementing different explorations instead of one class with
     # TODO different methods
-
+    __metaclass__ = ABCMeta
     def __init__(self):
+        super(ExplorationStrategy, self).__init__()
         self.config = ExplorationConfig()
         
 
 
-    @abstractmethod
+
     def get_strategy(self, counter, num_actions, options):
         '''
         Abstract method for returning the exploration decision
@@ -46,7 +46,7 @@ class ExplorationStrategy(ABC):
 
 class EpsilonGreedyPreTrain(ExplorationStrategy):
     def __init__(self):
-        super().__init__()
+        super(EpsilonGreedyPreTrain, self).__init__()
         self.epsilon = self.config.startE
 
     def get_strategy(self, counter, num_actions, options=None):
@@ -73,7 +73,7 @@ class EpsilonGreedyPreTrain(ExplorationStrategy):
 
 class EpsilonGreedy(ExplorationStrategy):
     def __init__(self):
-        super().__init__()
+        super(EpsilonGreedy, self).__init__()
         self.epsilon = self.config.startE
 
     def get_strategy(self, counter, num_actions, options=None):
@@ -98,7 +98,7 @@ class EpsilonGreedy(ExplorationStrategy):
 
 class RandomStrategy(ExplorationStrategy):
     def __init__(self):
-        super().__init__()
+        super(RandomStrategy, self).__init__()
         self.epsilon = self.config.startE
 
 

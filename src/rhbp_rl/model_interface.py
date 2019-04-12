@@ -1,12 +1,14 @@
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 
-class AbstractApproximator(ABC):
+class AbstractApproximator(ABCMeta):
     '''
     Abstract approximator class that provides interface to predictive models, the implementations
     are not supposed to implement any kind of algorythmic structures, only approximative model,
     way to get a prediction for it and train it
     '''
+    __metaclass__ = ABCMeta
     def __init__(self):
+        
         super(AbstractApproximator, self).__init__()
 
     @abstractmethod
