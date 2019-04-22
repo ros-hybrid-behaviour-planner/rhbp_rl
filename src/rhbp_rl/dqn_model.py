@@ -19,7 +19,7 @@ import tensorflow as tf
 
 import matplotlib.pyplot as plt
 import os
-from tensorflow.contrib import slim
+from neural_network import BaseNet1
 
 from nn_model_base import ReinforcementAlgorithmBase
 from rl_config import NNConfig, EvaluationConfig, SavingConfig, DQNConfig, ExplorationConfig
@@ -29,15 +29,20 @@ import utils.rhbp_logging
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
 
-class DQNModel(ReinforcementAlgorithmBase):
+class DQNModel():
     def __init__(self, name):
-        super(DQNModel, self).__init__(name)
+
         # Set learning parameters
         self.model_config = DQNConfig()
         self.save_config = SavingConfig()
+        self.save_conf = SavingConfig()
         self.nn_config = NNConfig()
+        self.model_path = self.save_conf.model_path + name + '-1000.meta'
+        self.model_folder = self.save_conf.model_directory
         self.evaluation = Evaluation(self.model_folder)
+        self.name = name
         self.eval_config = EvaluationConfig()
+        self.exploration_config = ExplorationConfig()
         self.train_interval = self.model_config.train_interval
         self.pre_train_steps = self.model_config.pre_train  # Number of steps used before training updates begin.
         self.q_net = None
@@ -53,44 +58,59 @@ class DQNModel(ReinforcementAlgorithmBase):
         self.rewards_over_time = []
         self.num_inputs = 0
         self.num_outputs = 0
+         # model variables
+        self.Qout = None
+        self.predict = None
+        self.inputs1 = None
+        self.path = "/home/gozman/Desktop/network"
 
-    def reset_model_values(self):
-        self.model_training_counter = 0
-        self.exp_buffer.reset()
-        self.reward_saver = []
+        self.nextQ = None
+        self.updateModel = None
 
-    def initialize_model(self, num_inputs, num_outputs, load_mode=False):
+        self.model_is_set_up = False
+
+  
+    def start_nn(self, num_inputs, num_outputs):
         """
-        initializes the neural network layer. THis function defines how exactly the neural network looks like
-        :param num_inputs: number of input values for the network
-        :param num_outputs: number of output values for the network
-        :return: 
-        """
-        self.reset_model_values()
-        if not load_mode:
-            tf.reset_default_graph()
-        # initialize two networks. q-network and target q-network
-        self.q_net = QNetwork(num_inputs, num_outputs, nn_config=self.nn_config)
-        self.target_net = QNetwork(num_inputs, num_outputs, nn_config=self.nn_config)
-        self.init = tf.global_variables_initializer()
-        # returns all variables created with trainable=True
-        trainables = tf.trainable_variables()
-        # create target operations
-        self.targetOps = self.updateTargetGraph(trainables, self.model_config.tau)
-        # buffer class for experience learning
-        # self.myBuffer = experience_buffer()
-        if not load_mode:
-            # saver
-            self.saver = tf.train.Saver()
-            # with tf.Session() as self.sess:
-            self.sess = tf.Session()
-            # init all variables
-
-        self.sess.run(self.init)
-        # run target operations
-        self.updateTarget(self.targetOps, self.sess)
+          calls to start the neural network. checks first if one already exists.
+          :param num_inputs: 
+          :param num_outputs: 
+          :return: 
+          """
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
+        self.q_net = BaseNet1(num_inputs, num_outputs)
+        self.target_net = BaseNet1(num_inputs, num_outputs)
+        try:
+            self.q_net.load_model(self.path+'net1.ckpt')
+            self.target_net.load_model(self.path + 'net1.ckpt')
+            rhbplog.logerr("Loaded checkpoint")
+        except Exception as e:
+            rhbplog.logerr("Failed loading model, initialising a new one. Error: %s", e)
+            self.q_net = BaseNet1(num_inputs, num_outputs)
+            self.target_net = BaseNet1(num_inputs, num_outputs)
+
+  
+    def save_model(self):
+        """
+        saves the model 
+        :return: 
+        """
+        if self.q_net == None:
+            return
+        if not self.save_conf.save:
+            return
+
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
+
+        self.q_net.save_model(self.path + 'net1.ckpt')
+
+        if self.save_conf.save_buffer:
+            self.save_buffer()
+
+        rhbplog.loginfo("Saved model '%s'", self.path + 'net1.ckpt')
+
 
     def feed_forward(self, input_state):
         """
@@ -98,25 +118,7 @@ class DQNModel(ReinforcementAlgorithmBase):
         :param input_state: the input state as a vector
         :return: vector of activations
         """
-        allQ = self.sess.run([self.q_net.Q_out], feed_dict={self.q_net.inputs: input_state, self.q_net.keep_per: 1.0})
-        return allQ[0]
-
-    def load_model(self, num_inputs, num_outputs):
-        """
-        loads a saved model. only gets called if the model exists
-        :param num_inputs: number of input values of the network
-        :param num_outputs: number of output values of the network
-        :return: 
-        """
-        self.sess = tf.Session()
-
-        self.initialize_model(num_inputs, num_outputs, load_mode=True)
-
-        self.saver = tf.train.import_meta_graph(self.model_path)
-        self.saver.restore(self.sess, tf.train.latest_checkpoint(self.model_folder))
-
-        self.load_buffer()
-        rhbplog.loginfo("model restored")
+        return self.q_net.predict(input_state)
 
     def load_buffer(self):
         """
@@ -165,19 +167,31 @@ class DQNModel(ReinforcementAlgorithmBase):
 
     def train_model(self):
         """
+        THIS FUNCTION SHOULD DO:
+        1. Deal with eval plots
+        2. Save model checkpoint
+        3. Check if should train already or not dependingf on pretrain value
+        4. Get batch
+        5. Get predicted next values from Net1
+        6. Get get the best action indexes
+        7. Get predicted next value from Net2
+        8. Pick the Q-values with indexes from 6.
+        9. Compute target Q for update
+        10. Train Net1
+        11. Copy net2 to net1
         trains the model with the current experience
         """
-
+        
         # check if evaluation plots should be saved after configured number of trainings
-        if self.model_training_counter % self.eval_config.eval_step_interval == 0:
-            if self.eval_config.plot_loss:
-                self.evaluation.plot_losses(self.loss_over_time)
-            if self.eval_config.plot_rewards:
-                self.evaluation.plot_rewards(self.rewards_over_time)
+        # if self.model_training_counter % self.eval_config.eval_step_interval == 0:
+        #     if self.eval_config.plot_loss:
+        #         self.evaluation.plot_losses(self.loss_over_time)
+        #     if self.eval_config.plot_rewards:
+        #         self.evaluation.plot_rewards(self.rewards_over_time)
 
         # check if model should be saved after configured number of trainings
         if self.model_training_counter % self.save_config.steps_save == 0:
-            self.save_model()
+            self.q_net.save_model(self.path + 'net1.ckpt')
 
         self.model_training_counter += 1
 
@@ -189,105 +203,34 @@ class DQNModel(ReinforcementAlgorithmBase):
         # We use Double-DQN training algorithm
         # get sample of buffer for training
         train_batch = self.exp_buffer.sample(self.model_config.batch_size)
-        # feed resulting state and keep prob of 1 to predict action
-        Q1 = self.sess.run(self.q_net.predict,
-                           feed_dict={self.q_net.inputs: np.vstack(train_batch[:, 3]), self.q_net.keep_per: 1.0})
-        # get q-values of target network with the resulting state
-        Q2 = self.sess.run(self.target_net.Q_out,
-                           feed_dict={self.target_net.inputs: np.vstack(train_batch[:, 3]),
-                                      self.target_net.keep_per: 1.0})
+        Q1 = self.q_net.predict(np.vstack(train_batch[:, 3]))
+        Q2 = self.target_net.predict(np.vstack(train_batch[:, 3]))
+        indexes = np.argmax(Q1, 1)
         # multiplier to add if the episode ended
         # makes reward 0 if episode ended. simulation specific
         # target-q-values of batch for choosing prediction of q-network
-        double_q = Q2[range(self.model_config.batch_size), Q1]  # target_q-values for the q-net predicted action
+        rhbplog.logdebug("Here are Q1 " + str(indexes))
+        double_q = Q2[range(self.model_config.batch_size), indexes]  # target_q-values for the q-net predicted action
+        rhbplog.logdebug("Here are DQ " + str(double_q))
         # target q value calculation according to q-learning
         target_q = train_batch[:, 2] + (self.model_config.y * double_q)
-        # update the q-network model by giving the target-q-values, the input states and the chosen actions
-        _, loss = self.sess.run([self.q_net.updateModel, self.q_net.loss],
-                                feed_dict={self.q_net.inputs: np.vstack(train_batch[:, 0]), self.q_net.nextQ: target_q,
-                                           self.q_net.keep_per: 1.0, self.q_net.actions: train_batch[:, 1]})
+        actions = train_batch[:, 1]
+        rhbplog.logdebug("Here are targets " + str(target_q))
+        one_hots1 = np.array(actions, dtype=np.int32).reshape(-1)
+        #rhbplog.logerr(one_hots1)
+        one_hots = np.eye(self.num_outputs)[one_hots1]
+        #rhbplog.logerr("Here are onehots " + str(one_hots))
+        target_q_labels = np.multiply(one_hots, np.array([target_q, ]*self.num_outputs).transpose()) 
+        rhbplog.logdebug("Here are labels " + str(target_q_labels))
+        loss = self.q_net.train(np.vstack(train_batch[:, 0]), target_q_labels)
         # save the loss function value (squared error from q and target value)
         self.loss_over_time.append(loss)
         # update the target network
-        self.updateTarget(self.targetOps, self.sess)
+        phi = self.q_net.get_weights_for_sync()
+        self.target_net.set_weights_for_sync(phi)
         # save rewards and get new state
 
-    def updateTargetGraph(self, tfVars, tau):
-        """
-        returns a list of operations coming from the trainable variables
-        :param tfVars: 
-        :param tau: 
-        :return: 
-        """
-        total_vars = len(tfVars)
-        op_holder = []
-        for idx, var in enumerate(tfVars[0:total_vars / 2]):
-            op_holder.append(tfVars[idx + total_vars / 2].assign(
-                (var.value() * tau) + ((1 - tau) * tfVars[idx + total_vars / 2].value())))
-        return op_holder
 
-    def updateTarget(self, op_holder, sess):
-        """
-        run each operation in op_holder 
-        :param op_holder: 
-        :param sess: 
-        :return: 
-        """
-        for op in op_holder:
-            sess.run(op)
-
-
-class QNetwork(object):
-    """
-    this class implements the neural network. It is called for the Q-Network, but also for the target network.
-    """
-
-    def __init__(self, number_inputs, number_outputs, nn_config, name="q"):
-        self.nn_config = nn_config
-        self.name = name
-        # These lines establish the feed-forward part of the network used to choose actions
-        # these describe the observation (input),
-        self.inputs = tf.placeholder(shape=[None, number_inputs], dtype=tf.float32)
-        self.Temp = tf.placeholder(shape=None, dtype=tf.float32)
-        self.keep_per = tf.placeholder(shape=None, dtype=tf.float32)
-        # the layers that define the nn
-
-        self.hidden = []
-        for i in range(self.nn_config.hidden_layer_amount):
-            if i > 0:
-                last_layer = self.hidden[-1]
-            else:
-                last_layer = self.inputs
-            self.hidden.append(slim.fully_connected(last_layer, self.nn_config.hidden_layer_cell_amount,
-                                                    activation_fn=tf.nn.tanh,
-                                                    biases_initializer=tf.random_uniform_initializer()))
-        if self.nn_config.hidden_layer_amount > 0:
-            last_layer = self.hidden[-1]
-        else:
-            last_layer = self.inputs
-
-        # drop tensors out and scales others by probability of self.keep_per
-        # layer for computing the q_values
-
-        self.Q_out = slim.fully_connected(last_layer, number_outputs, activation_fn=None, biases_initializer=None)
-        # prediction is highest q-value
-        self.predict = tf.argmax(self.Q_out, 1)
-        # compute the softmax activations.
-        self.Q_dist = tf.nn.softmax(self.Q_out / self.Temp)
-
-        # Below we obtain the loss by taking the sum of squares difference between the target and prediction Q values.
-        self.actions = tf.placeholder(shape=[None], dtype=tf.int32)
-        self.actions_onehot = tf.one_hot(self.actions, number_outputs, dtype=tf.float32)
-
-        self.Q = tf.reduce_sum(tf.multiply(self.Q_out, self.actions_onehot), reduction_indices=1)
-        self.nextQ = tf.placeholder(shape=[None], dtype=tf.float32)
-        self.loss = tf.reduce_sum(tf.square(self.nextQ - self.Q))
-        # updating the weights of the model to minimize the loss function
-        if self.nn_config.use_adam_optimizer:
-            trainer = tf.train.AdamOptimizer(learning_rate=self.nn_config.learning_rate_optimizer)
-        else:
-            trainer = tf.train.GradientDescentOptimizer(learning_rate=self.nn_config.learning_rate_optimizer)
-        self.updateModel = trainer.minimize(self.loss)
 
 class Evaluation(object):
     """

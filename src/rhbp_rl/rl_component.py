@@ -69,34 +69,34 @@ class RLComponent(object):
         if negative_states is None:
             negative_states = []
 
-        try:
-            self.check_if_model_is_valid(input_state.num_inputs, input_state.num_outputs)
-            # GOZMAN saving state during the getting activation for next one is not a great idea
-            # TODO refactor it by decoupling this operation (might be tricky)
-            if input_state.last_action:  # only save state if we have a valid prior action.
-                # save current input state
-                self.save_state(input_state)
-                # update the last state, which would also be the starting point for the negative states
-                self.last_state = input_state.input_state
-                # save negative states if available
-                for state in negative_states:
-                    self.save_state(state, is_extra_state=True)
-                # update the model
-                self.model.train_model()
+        #try:
+        self.check_if_model_is_valid(input_state.num_inputs, input_state.num_outputs)
+        # GOZMAN saving state during the getting activation for next one is not a great idea
+        # TODO refactor it by decoupling this operation (might be tricky)
+        if input_state.last_action:  # only save state if we have a valid prior action.
+            # save current input state
+            self.save_state(input_state)
+            # update the last state, which would also be the starting point for the negative states
+            self.last_state = input_state.input_state
+            # save negative states if available
+            for state in negative_states:
+                self.save_state(state, is_extra_state=True)
+            # update the model
+            self.model.train_model()
 
-            # transform the input state and get activation
-            transformed_input = numpy.array(input_state.input_state).reshape(([1, len(input_state.input_state)]))
-            activations = self.model.feed_forward(transformed_input)
-            # return the activation via the service
-            activations = activations.tolist()[0]
-            activation_state = ActivationState(**{
-                "name": self.name,  # this is sent for sanity check and planner status messages only
-                "activations": activations,
-            })
-            return activation_state
-        except Exception as e:
-            rhbplog.logerr(e.message)
-            return None
+        # transform the input state and get activation
+        transformed_input = numpy.array(input_state.input_state).reshape(([1, len(input_state.input_state)]))
+        activations = self.model.feed_forward(transformed_input)
+        # return the activation via the service
+        activations = activations.tolist()[0]
+        activation_state = ActivationState(**{
+            "name": self.name,  # this is sent for sanity check and planner status messages only
+            "activations": activations,
+        })
+        return activation_state
+    #except Exception as e:
+        rhbplog.logerr(e.message)
+        return None
 
     def save_state(self, input_state, is_extra_state=False):
         """

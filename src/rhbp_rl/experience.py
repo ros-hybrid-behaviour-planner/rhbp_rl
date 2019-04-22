@@ -1,12 +1,14 @@
 import numpy as np
 import random
+from collections import deque
 
 class ExperienceBuffer(object):
     """
     the experience buffer saves all experiences. these experiences can later be revisited for training the model.
     therefore the training batches do not correlate because not the experiences that follow on after another
     are used for training
-    TODO double check if this implementation is efficient and correct!
+    TODO double check if this implementation is efficient and correct! DONE
+    TODO CHANGING TO DEQUE MIGHT BE A GOOD IDEA DONE
     """
 
     def __init__(self, buffer_size=10000):
