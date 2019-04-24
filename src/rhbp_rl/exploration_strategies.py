@@ -22,9 +22,6 @@ class ExplorationStrategy(object):
     exploration strategy.
     """
     
-    #ADDRESSED
-    # TODO better make this a hierarchy of classes implementing different explorations instead of one class with
-    # TODO different methods
     __metaclass__ = ABCMeta
     def __init__(self):
         super(ExplorationStrategy, self).__init__()

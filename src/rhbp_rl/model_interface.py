@@ -61,34 +61,11 @@ class AbstractDDQApproximator(object):
         '''
         pass
 
-    # @abstractmethod
-    # def save_buffer(self, path):
-    #     '''
-    #     Saves examples to a certain path
-    #     :param path: path to file where to save examples
-    #     '''
-    #     pass
-
-    # @abstractmethod
-    # def load_buffer(self, path):
-    #     '''
-    #     Load examples to buffer
-    #     :param path: path to examples file
-    #     '''
-    #     pass
 
     @abstractmethod
-    def get_weights_for_sync(self):
+    def sync_nets(self, to_sync, tau):
         '''
-        This function implies that that the model is used for DDQN algorithm and is needed to sync thew weight between target 
-        and base q networks, as such it returns weight in a certain form that can be used in set_weights_for_sync method to set 
-        the weight of the target network
-        :return: NN weights
+        Copies the weights of to_sync model to the current modek
+        :param to_sync: q network, the weight of which are used for update
         '''
-        pass
-    @abstractmethod
-    def set_weights_for_sync(self):
-        '''
-        Sets the weights of the network with the contents that were taken with get_weights_for_sync method
-        '''
-        pass
+

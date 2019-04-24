@@ -44,8 +44,8 @@ class DQNConfig(object):
     def __init__(self):
         try:
             # Set learning parameters
-            self.y = rospy.get_param("~y", 0.99)  # Discount factor.
-            self.tau = rospy.get_param("~tau", 0.001)  # Amount to update target network at each step.
+            self.y = rospy.get_param("~y", 0.95)  # Discount factor.
+            self.tau = rospy.get_param("~tau", 0.01)  # Amount to update target network at each step.
             self.batch_size = rospy.get_param("~batch_size", 32)  # Size of training batch
             self.buffer_size = rospy.get_param("~buffer_size", 10000)  # size of the experience learning buffer
             self.train_interval = rospy.get_param("~train_interval", 5)  # train the model every train_interval steps
@@ -53,7 +53,7 @@ class DQNConfig(object):
                                                  6000000)  # steps after the model does not get trained anymore
             self.pre_train = rospy.get_param("~pre_train", 100)  # no training before this many steps
         except Exception:
-            self.y = 0.99  # Discount factor.
+            self.y = 0.95  # Discount factor.
             self.tau = 0.001  # Amount to update target network at each step.
             self.batch_size = 32  # Size of training batch
             self.buffer_size = 10000  # size of the experience learning buffer

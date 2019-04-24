@@ -19,9 +19,8 @@ import tensorflow as tf
 
 import matplotlib.pyplot as plt
 import os
-from neural_network import BaseNet1
+from neural_network import QNet
 
-from nn_model_base import ReinforcementAlgorithmBase
 from rl_config import NNConfig, EvaluationConfig, SavingConfig, DQNConfig, ExplorationConfig
 from experience import ExperienceBuffer
 
@@ -29,7 +28,7 @@ import utils.rhbp_logging
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
 
-class DQNModel():
+class DDQNAlgo():
     def __init__(self, name):
 
         # Set learning parameters
@@ -37,7 +36,7 @@ class DQNModel():
         self.save_config = SavingConfig()
         self.save_conf = SavingConfig()
         self.nn_config = NNConfig()
-        self.model_path = self.save_conf.model_path + name + '-1000.meta'
+        self.model_path = self.save_conf.model_path + name + '-1000'
         self.model_folder = self.save_conf.model_directory
         self.evaluation = Evaluation(self.model_folder)
         self.name = name
@@ -59,15 +58,6 @@ class DQNModel():
         self.num_inputs = 0
         self.num_outputs = 0
          # model variables
-        self.Qout = None
-        self.predict = None
-        self.inputs1 = None
-        self.path = "/home/gozman/Desktop/network"
-
-        self.nextQ = None
-        self.updateModel = None
-
-        self.model_is_set_up = False
 
   
     def start_nn(self, num_inputs, num_outputs):
@@ -77,18 +67,21 @@ class DQNModel():
           :param num_outputs: 
           :return: 
           """
+
+        if not os.path.exists(self.model_path):
+            os.makedirs(self.model_path)
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
-        self.q_net = BaseNet1(num_inputs, num_outputs)
-        self.target_net = BaseNet1(num_inputs, num_outputs)
+        self.q_net = QNet(num_inputs, num_outputs)
+        self.target_net = QNet(num_inputs, num_outputs)
         try:
-            self.q_net.load_model(self.path+'net1.ckpt')
-            self.target_net.load_model(self.path + 'net1.ckpt')
-            rhbplog.logerr("Loaded checkpoint")
+            self.q_net.load_model(self.model_path)
+            self.target_net.load_model(self.model_path)
+            rhbplog.loginfo("Loaded checkpoint")
         except Exception as e:
             rhbplog.logerr("Failed loading model, initialising a new one. Error: %s", e)
-            self.q_net = BaseNet1(num_inputs, num_outputs)
-            self.target_net = BaseNet1(num_inputs, num_outputs)
+            self.q_net.re_init(num_inputs, num_outputs)
+            self.target_net.re_init(num_inputs, num_outputs)
 
   
     def save_model(self):
@@ -101,15 +94,15 @@ class DQNModel():
         if not self.save_conf.save:
             return
 
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+        if not os.path.exists(self.model_path):
+            os.makedirs(self.model_path)
 
-        self.q_net.save_model(self.path + 'net1.ckpt')
+        self.q_net.save_model(self.model_path)
 
         if self.save_conf.save_buffer:
             self.save_buffer()
 
-        rhbplog.loginfo("Saved model '%s'", self.path + 'net1.ckpt')
+        rhbplog.loginfo("Saved model '%s'", self.model_path)
 
 
     def feed_forward(self, input_state):
@@ -166,32 +159,17 @@ class DQNModel():
         self.exp_buffer.add(transformed_tuple)
 
     def train_model(self):
-        """
-        THIS FUNCTION SHOULD DO:
-        1. Deal with eval plots
-        2. Save model checkpoint
-        3. Check if should train already or not dependingf on pretrain value
-        4. Get batch
-        5. Get predicted next values from Net1
-        6. Get get the best action indexes
-        7. Get predicted next value from Net2
-        8. Pick the Q-values with indexes from 6.
-        9. Compute target Q for update
-        10. Train Net1
-        11. Copy net2 to net1
-        trains the model with the current experience
-        """
-        
-        # check if evaluation plots should be saved after configured number of trainings
-        # if self.model_training_counter % self.eval_config.eval_step_interval == 0:
-        #     if self.eval_config.plot_loss:
-        #         self.evaluation.plot_losses(self.loss_over_time)
-        #     if self.eval_config.plot_rewards:
-        #         self.evaluation.plot_rewards(self.rewards_over_time)
+        #check if evaluation plots should be saved after configured number of trainings
+        if self.model_training_counter % self.eval_config.eval_step_interval == 0:
+             if self.eval_config.plot_loss:
+                 self.evaluation.plot_losses(self.loss_over_time)
+             if self.eval_config.plot_rewards:
+                 self.evaluation.plot_rewards(self.rewards_over_time)
 
         # check if model should be saved after configured number of trainings
         if self.model_training_counter % self.save_config.steps_save == 0:
-            self.q_net.save_model(self.path + 'net1.ckpt')
+            rhbplog.logerr("Save model")
+            self.q_net.save_model(self.model_path)
 
         self.model_training_counter += 1
 
@@ -217,18 +195,15 @@ class DQNModel():
         actions = train_batch[:, 1]
         rhbplog.logdebug("Here are targets " + str(target_q))
         one_hots1 = np.array(actions, dtype=np.int32).reshape(-1)
-        #rhbplog.logerr(one_hots1)
         one_hots = np.eye(self.num_outputs)[one_hots1]
-        #rhbplog.logerr("Here are onehots " + str(one_hots))
         target_q_labels = np.multiply(one_hots, np.array([target_q, ]*self.num_outputs).transpose()) 
-        rhbplog.logdebug("Here are labels " + str(target_q_labels))
         loss = self.q_net.train(np.vstack(train_batch[:, 0]), target_q_labels)
         # save the loss function value (squared error from q and target value)
         self.loss_over_time.append(loss)
         # update the target network
-        phi = self.q_net.get_weights_for_sync()
-        self.target_net.set_weights_for_sync(phi)
-        # save rewards and get new state
+        rhbplog.loginfo("Syncing the target and q-network")
+        self.target_net.sync_nets(self.q_net)
+            # save rewards and get new state
 
 
 
