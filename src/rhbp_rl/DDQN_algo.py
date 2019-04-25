@@ -39,6 +39,7 @@ class DDQNAlgo():
         self.model_path = self.save_conf.model_path + name + '-1000'
         self.model_folder = self.save_conf.model_directory
         self.evaluation = Evaluation(self.model_folder)
+
         self.name = name
         self.eval_config = EvaluationConfig()
         self.exploration_config = ExplorationConfig()
@@ -65,22 +66,19 @@ class DDQNAlgo():
           :param num_outputs: 
           :return: 
           """
-
+        self.exp_buffer.reset()
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
         self.q_net = QNet(num_inputs, num_outputs)
-        self.target_net = QNet(num_inputs, num_outputs)
         try:
             self.q_net.load_model(self.model_path)
-            self.target_net.load_model(self.model_path)
             rhbplog.loginfo("Loaded checkpoint")
         except Exception as e:
             rhbplog.logerr("Failed loading model, initialising a new one. Error: %s", e)
             self.q_net.re_init(num_inputs, num_outputs)
-            self.target_net.re_init(num_inputs, num_outputs)
-
+        self.target_net = self.q_net.produce_target()
   
     def save_model(self):
         """

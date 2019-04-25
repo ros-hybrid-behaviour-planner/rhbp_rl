@@ -69,3 +69,8 @@ class AbstractDDQApproximator(object):
         :param to_sync: q network, the weight of which are used for update
         '''
 
+    @abstractmethod
+    def produce_target(self):
+        '''
+        This method should return a clone of the q-network made in an appropriate way
+        '''

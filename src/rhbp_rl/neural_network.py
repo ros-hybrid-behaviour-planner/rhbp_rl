@@ -16,6 +16,9 @@ class QNet(AbstractDDQApproximator):
     def __init__(self, number_inputs, number_outputs):
         super(QNet, self).__init__(number_inputs, number_outputs)
         self.lr = 0.001
+        self.inputs = number_outputs
+        self.outputs = number_outputs
+        self.__model = None
 
     def re_init(self, number_inputs, number_outputs):
         '''
@@ -23,11 +26,11 @@ class QNet(AbstractDDQApproximator):
         '''
         self.__model = keras.Sequential([
             layers.Dense(64, activation=tf.nn.tanh,
-                         input_shape=(number_inputs,), use_bias=True, kernel_initializer=tf.initializers.glorot_uniform()),
+                         input_shape=(number_inputs,), use_bias=True, kernel_initializer=tf.keras.initializers.uniform()),
             layers.Dense(64, activation=tf.nn.tanh,
-                         kernel_initializer=tf.initializers.glorot_uniform(), use_bias=True),
+                         kernel_initializer=tf.keras.initializers.uniform(), use_bias=True),
             layers.Dense(64, activation=tf.nn.tanh,
-                         kernel_initializer=tf.initializers.glorot_uniform(), use_bias=True),
+                         kernel_initializer=tf.keras.initializers.uniform(), use_bias=True),
             layers.Dropout(rate=0.2),
             layers.Dense(number_outputs)
         ])
@@ -48,7 +51,7 @@ class QNet(AbstractDDQApproximator):
     def load_model(self, path):
         self.__model = tf.keras.models.load_model(path + '.h5')
         self.__model.compile(loss='mean_squared_error', optimizer=tf.keras.optimizers.SGD(
-            0.0001), metrics=['mean_squared_error'])
+            self.lr), metrics=['mean_squared_error'])
         print(self.__model.summary())
         return True
 
@@ -76,7 +79,11 @@ class QNet(AbstractDDQApproximator):
 
 
     def get_model(self):
-        return self.__model()    
+        return self.__model 
+
+    def set_model(self, mod):
+        self.__model = mod
+           
 
     def get_soft_update_weights(self, source, tau):
         '''
@@ -86,3 +93,9 @@ class QNet(AbstractDDQApproximator):
         source_weights = source
         assert len(target_weights) == len(source_weights)    
         return [phi * tau for phi in source_weights] + [phi * (1. - tau) for phi in target_weights]
+
+    def produce_target(self):
+        target = QNet(self.inputs, self.outputs)
+        model = tf.keras.models.clone_model(self.__model)
+        target.set_model(model)
+        return target
