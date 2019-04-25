@@ -5,6 +5,7 @@ from tensorflow.keras import layers
 import numpy as np
 import pandas as pd
 
+
 '''
 Simple neural network
 '''
@@ -14,8 +15,12 @@ class QNet(AbstractDDQApproximator):
 
     def __init__(self, number_inputs, number_outputs):
         super(QNet, self).__init__(number_inputs, number_outputs)
+        self.lr = 0.001
 
     def re_init(self, number_inputs, number_outputs):
+        '''
+        This is a simple neural network implemented in tensorflow, tested 1.13, easily migratable to 2.0 because it uses in-built keras adaptation
+        '''
         self.__model = keras.Sequential([
             layers.Dense(64, activation=tf.nn.tanh,
                          input_shape=(number_inputs,), use_bias=True, kernel_initializer=tf.initializers.glorot_uniform()),
@@ -27,14 +32,14 @@ class QNet(AbstractDDQApproximator):
             layers.Dense(number_outputs)
         ])
         self.__model.compile(loss='mean_squared_error', optimizer=tf.keras.optimizers.SGD(
-            0.0001), metrics=['mean_squared_error'])
+            self.lr), metrics=['mean_squared_error'])
         print(self.__model.summary())
 
     def predict(self, input_state):
         return self.__model.predict(input_state)
 
     def train(self, states, labels):
-        history = self.__model.fit(states, labels, epochs=5)
+        history = self.__model.fit(states, labels, epochs=5, verbose=0)
         return pd.DataFrame(history.history)['mean_squared_error']
 
     def save_model(self, path):
@@ -48,31 +53,36 @@ class QNet(AbstractDDQApproximator):
         return True
 
     def get_weights_for_sync(self):
-        return self.__model.trainable_weights + sum([l.non_trainable_weights for l in self.__model.layers], [])
+        '''
+        Returns the numpy weights for the network
+        :return: weights of the network
+        '''
+        return self.__model.get_weights()
 
     def set_weights_for_sync(self, weights):
+        '''
+        Sets the numpy weights for the network
+        :set: weights of the network
+        '''
         return self.__model.set_weights(weights)
 
     def sync_nets(self, to_sync, tau=0.01):
-        print('nigga')
+        '''
+        this method sync the networks softly via computing the updated weights from tau parameter
+        '''
         source = to_sync.get_weights_for_sync()
-        print('nigga')
-        updates = self.get_soft_target_model_updates(source, tau)
-     
-        self.__model.set_weights(to_sync.get_weights_for_sync())
+        updates = self.get_soft_update_weights(source, tau)
+        self.__model.set_weights(updates)
 
 
     def get_model(self):
         return self.__model()    
 
-    def get_soft_target_model_updates(self, source, tau):
-        print('nigga')
-        target_weights = self.__model.trainable_weights + sum([l.non_trainable_weights for l in self.__model.layers], [])
+    def get_soft_update_weights(self, source, tau):
+        '''
+        Computes the weighted average of the weights with tau paramters, not the most efficient implementation
+        '''
+        target_weights = self.__model.get_weights()
         source_weights = source
-        assert len(target_weights) == len(source_weights)
-        # Create updates.
-        updates = []
-        for tw, sw in zip(target_weights, source_weights):
-            updates.append((tw, tau * sw + (1. - tau) * tw))
-        print(updates)
-        return updates
+        assert len(target_weights) == len(source_weights)    
+        return [phi * tau for phi in source_weights] + [phi * (1. - tau) for phi in target_weights]

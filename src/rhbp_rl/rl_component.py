@@ -84,7 +84,7 @@ class RLComponent(object):
 
             # transform the input state and get activation
             transformed_input = numpy.array(input_state.input_state).reshape(([1, len(input_state.input_state)]))
-            activations = self.model.feed_forward(transformed_input)
+            activations = self.model.predict(transformed_input)
             # return the activation via the service
             activations = activations.tolist()[0]
             activation_state = ActivationState(**{

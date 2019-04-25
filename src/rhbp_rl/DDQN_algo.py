@@ -46,8 +46,6 @@ class DDQNAlgo():
         self.pre_train_steps = self.model_config.pre_train  # Number of steps used before training updates begin.
         self.q_net = None
         self.target_net = None
-        self.init = None
-        self.targetOps = None
         # buffer class for experience learning
         self.exp_buffer = ExperienceBuffer(self.model_config.buffer_size)
         self.model_training_counter = 0
@@ -105,7 +103,7 @@ class DDQNAlgo():
         rhbplog.loginfo("Saved model '%s'", self.model_path)
 
 
-    def feed_forward(self, input_state):
+    def predict(self, input_state):
         """
         feed forwarding the input_state into the network and getting the calculated activations
         :param input_state: the input state as a vector
@@ -168,7 +166,6 @@ class DDQNAlgo():
 
         # check if model should be saved after configured number of trainings
         if self.model_training_counter % self.save_config.steps_save == 0:
-            rhbplog.logerr("Save model")
             self.q_net.save_model(self.model_path)
 
         self.model_training_counter += 1
@@ -187,13 +184,10 @@ class DDQNAlgo():
         # multiplier to add if the episode ended
         # makes reward 0 if episode ended. simulation specific
         # target-q-values of batch for choosing prediction of q-network
-        rhbplog.logdebug("Here are Q1 " + str(indexes))
         double_q = Q2[range(self.model_config.batch_size), indexes]  # target_q-values for the q-net predicted action
-        rhbplog.logdebug("Here are DQ " + str(double_q))
         # target q value calculation according to q-learning
         target_q = train_batch[:, 2] + (self.model_config.y * double_q)
         actions = train_batch[:, 1]
-        rhbplog.logdebug("Here are targets " + str(target_q))
         one_hots1 = np.array(actions, dtype=np.int32).reshape(-1)
         one_hots = np.eye(self.num_outputs)[one_hots1]
         target_q_labels = np.multiply(one_hots, np.array([target_q, ]*self.num_outputs).transpose()) 
@@ -202,8 +196,7 @@ class DDQNAlgo():
         self.loss_over_time.append(loss)
         # update the target network
         rhbplog.loginfo("Syncing the target and q-network")
-        self.target_net.sync_nets(self.q_net)
-            # save rewards and get new state
+        self.target_net.sync_nets(self.q_net, self.model_config.tau)
 
 
 
