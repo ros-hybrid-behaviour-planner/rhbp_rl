@@ -18,7 +18,7 @@ class NNConfig(object):
     def __init__(self):
         try:
             # True if AdamOptimizer should be used. Uses GradientDescentOptimizer otherwise
-            self.use_adam_optimizer = rospy.get_param("~use_adam_optimizer", True)
+            self.use_adam_optimizer = rospy.get_param("~use_adam_optimizer", False)
             self.learning_rate_optimizer = rospy.get_param("~learning_rate_optimizer",
                                                            0.001)  # learning rate of the optimizer
             self.hidden_layer_amount = rospy.get_param("~hidden_layer_amount", 2)
