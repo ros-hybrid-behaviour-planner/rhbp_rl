@@ -3,7 +3,7 @@
 @author: lehmann, hrabia
 """
 import rospy
-from DDQN_algo import DDQNAlgo
+from ddql import DDQNAlgo
 from rhbp_rl.msg import ActivationState
 from rhbp_rl.srv import GetActivation, GetActivationResponse
 import numpy

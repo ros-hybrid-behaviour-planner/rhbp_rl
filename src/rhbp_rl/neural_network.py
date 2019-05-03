@@ -11,31 +11,53 @@ Simple neural network
 '''
 
 
-class QNet(AbstractDDQApproximator):
+class DefaultQNet(AbstractDDQApproximator):
 
-    def __init__(self, number_inputs, number_outputs):
-        super(QNet, self).__init__(number_inputs, number_outputs)
-        self.lr = 0.001
-        self.inputs = number_outputs
+    def __init__(self, number_inputs, number_outputs, use_adam=False, num_hidden_layers=2, num_neurons=16, dropout_rate=0.2, lr=0.001):
+        super(DefaultQNet, self).__init__(number_inputs, number_outputs)
+        assert (num_hidden_layers > 0), 'Number of layers should be bigger than 0'
+        assert (num_neurons > 0), 'Number of neurons per layer should be bigger than 0'
+        assert (dropout_rate < 1), 'Drop out rate should not be bigger or equalt to 1'
+        self.lr = lr
+        self.number_inputs = number_inputs
+        self.number_outputs = number_outputs
         self.outputs = number_outputs
+        self.use_adam = use_adam
+        self.num_hidden_layers = num_hidden_layers
+        self.num_neurons = num_neurons
+        self.dropout_rate = dropout_rate
         self.__model = None
 
     def re_init(self, number_inputs, number_outputs):
         '''
-        This is a simple neural network implemented in tensorflow, tested 1.13, easily migratable to 2.0 because it uses in-built keras adaptation
+        This function build the default neural networks with parameters that were passed upon the initialization
         '''
-        self.__model = keras.Sequential([
-            layers.Dense(64, activation=tf.nn.tanh,
-                         input_shape=(number_inputs,), use_bias=True, kernel_initializer=tf.keras.initializers.uniform()),
-            layers.Dense(64, activation=tf.nn.tanh,
-                         kernel_initializer=tf.keras.initializers.uniform(), use_bias=True),
-            layers.Dense(64, activation=tf.nn.tanh,
-                         kernel_initializer=tf.keras.initializers.uniform(), use_bias=True),
-            layers.Dropout(rate=0.2),
-            layers.Dense(number_outputs)
-        ])
-        self.__model.compile(loss='mean_squared_error', optimizer=tf.keras.optimizers.SGD(
-            self.lr), metrics=['mean_squared_error'])
+        self.number_inputs = number_inputs
+        self.number_outputs = number_outputs
+        self.__model = keras.Sequential()
+
+        self.__model.add(layers.Dense(self.num_neurons, activation=tf.nn.tanh,
+                                      input_shape=(self.number_inputs,), use_bias=True, kernel_initializer=tf.keras.initializers.random_uniform()))
+
+        for i in range(self.num_hidden_layers-1):
+            self.__model.add(layers.Dense(self.num_neurons, activation=tf.nn.tanh,
+                                      use_bias=True, kernel_initializer=tf.keras.initializers.random_uniform()))
+        
+        
+        self.__model.add(layers.Dense(self.num_neurons, activation=tf.nn.tanh,
+                                      use_bias=True, kernel_initializer=tf.keras.initializers.random_uniform()))
+
+        
+        if self.dropout_rate > 0:
+            self.__model.add(layers.Dropout(rate=self.dropout_rate))
+        
+        self.__model.add(layers.Dense(self.number_outputs))
+        optimizer = None
+        if self.use_adam:
+            optimizer = tf.keras.optimizers.Adam(lr=self.lr)
+        else:
+            optimizer=tf.keras.optimizers.SGD(lr=self.lr)
+        self.__model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
         print(self.__model.summary())
 
     def predict(self, input_state):
@@ -50,8 +72,12 @@ class QNet(AbstractDDQApproximator):
 
     def load_model(self, path):
         self.__model = tf.keras.models.load_model(path + '.h5')
-        self.__model.compile(loss='mean_squared_error', optimizer=tf.keras.optimizers.SGD(
-            self.lr), metrics=['mean_squared_error'])
+        optimizer = None
+        if self.use_adam:
+            optimizer = tf.keras.optimizers.Adam(lr=self.lr)
+        else:
+            optimizer=tf.keras.optimizers.SGD(lr=self.lr)
+        self.__model.compile(loss='mean_squared_error', optimizer=optimizer, metrics=['mean_squared_error'])
         print(self.__model.summary())
         return True
 
@@ -77,13 +103,11 @@ class QNet(AbstractDDQApproximator):
         updates = self.get_soft_update_weights(source, tau)
         self.__model.set_weights(updates)
 
-
     def get_model(self):
-        return self.__model 
+        return self.__model
 
     def set_model(self, mod):
         self.__model = mod
-           
 
     def get_soft_update_weights(self, source, tau):
         '''
@@ -91,11 +115,11 @@ class QNet(AbstractDDQApproximator):
         '''
         target_weights = self.__model.get_weights()
         source_weights = source
-        assert len(target_weights) == len(source_weights)    
+        assert len(target_weights) == len(source_weights)
         return [phi * tau for phi in source_weights] + [phi * (1. - tau) for phi in target_weights]
 
     def produce_target(self):
-        target = QNet(self.inputs, self.outputs)
+        target = DefaultQNet(self.number_inputs, self.number_outputs, self.use_adam, self.num_hidden_layers, self.num_neurons, self.dropout_rate, self.lr)
         model = tf.keras.models.clone_model(self.__model)
         target.set_model(model)
         return target
