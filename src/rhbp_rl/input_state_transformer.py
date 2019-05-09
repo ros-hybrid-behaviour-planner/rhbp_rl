@@ -5,11 +5,26 @@ transforms values from rhbp to rl-values
 import numpy
 from behaviour_components.sensors import EncodingConstants
 from rl_config import TransitionConfig
+import rospy
+from rhbp_rl.srv import RecSensor
 
 import utils.rhbp_logging
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
+class RlExtension(object):
+    """
+    This Extension can be included in the Sensors. It determines how the true values of the sensors should be used the
+    RL-algorithm.
+    # Encoding types = [ hot_state , none] see EncodingConstants above
+    """
+    # TODO state_space does not work for negative numbers!
 
+    def __init__(self, name, encoding=0, state_space=2, include_in_rl=True):
+        self.name = name
+        self.encoding = encoding
+        # State space is only required for EncodingConstants.HOT_STATE
+        self.state_space = state_space
+        self.include_in_rl = include_in_rl  # True if it should be used for learning
 class GoalInfo(object):
     """
     Simple helper class we use to temporarily store goal information we need for reward calculation
@@ -32,6 +47,15 @@ class InputStateTransformer(object):
         self._manager = manager
         self.conf = TransitionConfig()
         self._last_operational_goals = {}
+        self.sensor_descriptors = {}
+        self._set_rl_descriptor_service = rospy.Service('RLRecSensor', RecSensor, self._set_rl_descriptor_callback)
+
+    def _set_rl_descriptor_callback(self, req):
+        rl_ext = RlExtension(
+            name=req.name, state_space=req.state_space, encoding=req.encoding, include_in_rl=req.include_in_rl)
+        self.sensor_descriptors[req.name] = rl_ext
+        return 1
+
 
     def calculate_reward(self):
         """
@@ -132,17 +156,19 @@ class InputStateTransformer(object):
                     input_array = numpy.concatenate([input_array, wish_row])
             for sensor_value in behaviour.sensor_values:
                 if not sensor_input.has_key(sensor_value.name) and use_true_value:
-                    # encode or ignore the value regarding configuration in RLExtension
-                    if not sensor_value.include_in_rl:
-                        continue
-                    if sensor_value.encoding == EncodingConstants.HOT_STATE:
-                        value = self.make_hot_state_encoding(sensor_value.value, sensor_value.state_space)
+                    if sensor_value.name in self.sensor_descriptors:
+                        #print('Will we skip? ' + sensor_value.name + ' ' + str(self.sensor_descriptors[sensor_value.name].include_in_rl))
+                        if self.sensor_descriptors[sensor_value.name].include_in_rl == False: #The sensor should be explicitly turned off if it should be used for RL
+                            continue
+                        if self.sensor_descriptors[sensor_value.name].encoding == 1:
+                            value = self.make_hot_state_encoding(sensor_value.value, self.sensor_descriptors[sensor_value.name].state_space)
                     else:
                         value = numpy.array([[sensor_value.value]])
                     sensor_input[sensor_value.name] = value
                     input_array = numpy.concatenate([input_array, value])
-
         return input_array, sensor_input
+
+   
 
     def transform_goals(self, sensor_input, input_array):
         """
@@ -157,11 +183,11 @@ class InputStateTransformer(object):
         for goal in self._manager.goals:
             for sensor_value in goal.sensor_values:
                 if not sensor_input.has_key(sensor_value.name) and use_true_value:
-                    # encode or ignore the value regarding configuration in RLExtension
-                    if not sensor_value.include_in_rl:
-                        continue
-                    if sensor_value.encoding == EncodingConstants.HOT_STATE:
-                        value = self.make_hot_state_encoding(sensor_value.value, sensor_value.state_space)
+                    if sensor_value.name in self.sensor_descriptors:
+                        if self.sensor_descriptors[sensor_value.name].include_in_rl == False: #The sensor should be explicitly turned off if it should not be used for RL
+                            continue
+                        if self.sensor_descriptors[sensor_value.name].encoding == 1:
+                            value = self.make_hot_state_encoding(sensor_value.value, self.sensor_descriptors[sensor_value.name].state_space)
                     else:
                         value = numpy.array([[sensor_value.value]])
                     sensor_input[sensor_value.name] = value

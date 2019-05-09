@@ -1,7 +1,7 @@
 '''
 Created on 22.03.2017
 
-@author: hrabia, lehmann
+@author: hrabia, lehmann, gozman
 '''
 from __future__ import division  # force floating point division when using plain /
 
@@ -120,7 +120,8 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         # get the activations from the rl_component via service
         activation_rl = self.get_activation_from_rl_node()
         # return if no activations received
-        if len(activation_rl) == 0:
+        if activation_rl == None or len(activation_rl) == 0:
+            rhbplog.logerr('RL was none')            
             return
 
         # TODO Idea: Why not test first for exploration? Test to move it before get_activation_from_rl_node.Maybe error

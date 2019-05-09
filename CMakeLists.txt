@@ -56,6 +56,7 @@ add_service_files(
   FILES
   GetActivation.srv
   TrainBatches.srv
+  RecSensor.srv
 )
 
 ## Generate actions in the 'action' folder

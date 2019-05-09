@@ -66,10 +66,11 @@ class DDQLAlgo():
           :param num_outputs: 
           :return: 
           """
+        print(num_inputs)
         self.exp_buffer.reset()
         if not os.path.exists(self.model_folder):
             os.makedirs(self.model_path)
-        self.model_path = self.model_path + '-' + str(self.nn_config.hidden_layer_amount) + '-' + str(
+        self.model_path = self.model_path + str(num_inputs) + '-' + str(self.nn_config.hidden_layer_amount) + '-' + str(
             self.nn_config.hidden_layer_cell_amount) + '-' + str(self.nn_config.dropout_rate)
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
