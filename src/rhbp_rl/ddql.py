@@ -18,6 +18,7 @@ import numpy as np
 import numpy
 import matplotlib
 import rospy
+from collections import deque
 
 import pandas as pd
 
@@ -28,7 +29,7 @@ rhbplog = utils.rhbp_logging.LogManager(
     logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
 
-class DDQNAlgo():
+class DDQLAlgo():
     def __init__(self, name):
 
         # Set learning parameters
@@ -36,10 +37,9 @@ class DDQNAlgo():
         self.save_config = SavingConfig()
         self.save_conf = SavingConfig()
         self.nn_config = NNConfig()
-        self.model_path = self.save_conf.model_path + name + '-1000'
         self.model_folder = self.save_conf.model_directory
+        self.model_path = self.model_folder + '/' + name
         self.evaluation = Evaluation(self.model_folder)
-
         self.name = name
         self.eval_config = EvaluationConfig()
         self.exploration_config = ExplorationConfig()
@@ -67,8 +67,10 @@ class DDQNAlgo():
           :return: 
           """
         self.exp_buffer.reset()
-        if not os.path.exists(self.model_path):
+        if not os.path.exists(self.model_folder):
             os.makedirs(self.model_path)
+        self.model_path = self.model_path + '-' + str(self.nn_config.hidden_layer_amount) + '-' + str(
+            self.nn_config.hidden_layer_cell_amount) + '-' + str(self.nn_config.dropout_rate)
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
         self.q_net = DefaultQNet(num_inputs, num_outputs, self.nn_config.use_adam_optimizer,
@@ -123,8 +125,7 @@ class DDQNAlgo():
             with open(filename, "rb") as fp:
                 buffer = pickle.load(fp)
 
-            self.exp_buffer.counter = len(buffer)
-            self.exp_buffer.buffer = buffer
+            self.exp_buffer.buffer = deque(buffer)
             rhbplog.loginfo("experience buffer successfully loaded")
         except Exception:
             rhbplog.loginfo(
@@ -158,6 +159,7 @@ class DDQNAlgo():
         transformed_tuple = np.reshape(
             np.array([tuple[0], tuple[2], tuple[3], tuple[1]]), [1, 4])
         self.exp_buffer.add(transformed_tuple)
+
 
     def train_model(self):
         # check if evaluation plots should be saved after configured number of trainings

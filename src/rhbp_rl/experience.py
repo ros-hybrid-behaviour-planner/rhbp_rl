@@ -20,7 +20,6 @@ class ExperienceBuffer(object):
         :return: 
         """
         self.buffer = deque(maxlen = self.buffer_size)
-        self.counter = 0
 
     def add(self, experience):
         """

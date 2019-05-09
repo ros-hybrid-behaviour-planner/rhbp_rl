@@ -3,7 +3,7 @@
 @author: lehmann, hrabia
 """
 import rospy
-from ddql import DDQNAlgo
+from ddql import DDQLAlgo
 from rhbp_rl.msg import ActivationState
 from rhbp_rl.srv import GetActivation, GetActivationResponse
 import numpy
@@ -30,7 +30,7 @@ class RLComponent(object):
         self._get_activation_service = rospy.Service(name + 'GetActivation', GetActivation,
                                                      self._get_activation_state_callback)
         # choose appropriate model
-        self.model = DDQNAlgo(self.name)
+        self.model = DDQLAlgo(self.name)
 
         # save the last state
         self.last_state = None
@@ -64,7 +64,8 @@ class RLComponent(object):
         :param input_state:
         :type input_state: InputState
         :param negative_states:
-        :return: ActivationState
+        :return: 
+        ActivationState
         """
         if negative_states is None:
             negative_states = []
@@ -109,7 +110,6 @@ class RLComponent(object):
         last = numpy.array(self.last_state).reshape(([1, len(self.last_state)]))
         new = numpy.array(input_state.input_state).reshape(([1, len(input_state.input_state)]))
         reward_tuple = (last, new, input_state.last_action, input_state.reward)
-
         self.model.add_sample(tuple=reward_tuple, consider_reward=not is_extra_state)
 
     def check_if_model_is_valid(self, num_inputs, num_outputs):

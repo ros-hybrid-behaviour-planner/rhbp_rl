@@ -27,11 +27,13 @@ class DefaultQNet(AbstractDDQApproximator):
         self.num_neurons = num_neurons
         self.dropout_rate = dropout_rate
         self.__model = None
+        self.step = 0
 
     def re_init(self, number_inputs, number_outputs):
         '''
         This function build the default neural networks with parameters that were passed upon the initialization
         '''
+        self.step = 0
         self.number_inputs = number_inputs
         self.number_outputs = number_outputs
         self.__model = keras.Sequential()
@@ -95,10 +97,14 @@ class DefaultQNet(AbstractDDQApproximator):
         '''
         return self.__model.set_weights(weights)
 
-    def sync_nets(self, to_sync, tau=0.01):
+    def sync_nets(self, to_sync, tau=0.01, hard=False):
         '''
         this method sync the networks softly via computing the updated weights from tau parameter
         '''
+        if hard and (self.step % 5 == 0):
+            print("Hard updated the network")
+            self.hard_update(to_sync)
+            return
         source = to_sync.get_weights_for_sync()
         updates = self.get_soft_update_weights(source, tau)
         self.__model.set_weights(updates)
@@ -123,3 +129,7 @@ class DefaultQNet(AbstractDDQApproximator):
         model = tf.keras.models.clone_model(self.__model)
         target.set_model(model)
         return target
+
+    def hard_update(self, source):
+        self.__model.set_weights(source.get_model().get_weights())
+        
