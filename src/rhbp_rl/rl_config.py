@@ -18,22 +18,24 @@ class NNConfig(object):
     def __init__(self):
         try:
             # True if AdamOptimizer should be used. Uses GradientDescentOptimizer otherwise
-            self.use_adam_optimizer = rospy.get_param("~use_adam_optimizer", True)
+            self.use_adam_optimizer = rospy.get_param("~use_adam_optimizer", False)
             self.learning_rate_optimizer = rospy.get_param("~learning_rate_optimizer",
                                                            0.001)  # learning rate of the optimizer
-            self.hidden_layer_amount = rospy.get_param("~hidden_layer_amount", 1)
+            self.hidden_layer_amount = rospy.get_param("~hidden_layer_amount", 2)
             self.hidden_layer_cell_amount = rospy.get_param("~hidden_layer_cell_amount", 64)
-
+            self.dropout_rate = rospy.get_param("~dropout_rate", 0.0)
         except Exception:  # catches if no RosService was found
             self.learning_rate_optimizer = 0.001
             self.use_adam_optimizer = True
             self.hidden_layer_amount = 1
             self.hidden_layer_cell_amount = 64
+            self.dropout_rate = 0
 
         rhbplog.loginfo("use_adam_optimizer: %s", self.use_adam_optimizer)
         rhbplog.loginfo("learning_rate_optimizer: %2.3f", self.learning_rate_optimizer)
         rhbplog.loginfo("hidden_layer_amount: %d", self.hidden_layer_amount)
         rhbplog.loginfo("hidden_layer_cell_amount: %d", self.hidden_layer_cell_amount)
+        rhbplog.loginfo("dropout_rate: %f", self.dropout_rate)
 
 
 class DQNConfig(object):
