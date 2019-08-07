@@ -30,7 +30,7 @@ m = Manager(activation_algorithm="reinforcement")
 
 Here, it would be the goal to refactor this in a way that rhbp_core does not contain any RL dependencies.
 
-###rhbp_rl
+### rhbp_rl
 * **activation_algorithm.py:** Extension of the BaseActivationAlgo considering activation through RL. Here, the calculation is gathered from the independent RL component and integrated into the overall activation calculation.
 * **input_state_transformer.py:** Transforms the input state of RHBP components to an abstract format used by the RL component.
 * **exploration_strategies.py:** Contains different possible exploration strategies. 
