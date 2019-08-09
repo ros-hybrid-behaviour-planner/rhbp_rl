@@ -43,7 +43,7 @@ class InputStateTransformer(object):
         reward_value = 0
 
         # we collect the information we need about the goals in a more slim data structure
-        current_operational_goals = {g.name: GoalInfo(g.name, g.fulfillment, g.isPermanent, g.priority,
+        current_operational_goals = {g.name: GoalInfo(g.name, g.fulfillment, g.permanent, g.priority,
                                                       g.satisfaction_threshold)
                                      for g in self._manager.operational_goals}
 
