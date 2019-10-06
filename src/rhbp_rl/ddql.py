@@ -195,10 +195,10 @@ class DDQLAlgo():
             self.episode_run.append(transformed_tuple)
             #save trajectory to memory the episode has ended           
             if end:
-                if not self.model_config.timeseries: 
+                if not self.model_config.timeseries: #if no timeseries modes is turned on, preprocess and add trajectory to buffer, otherwise add the whole episode as one sample
                     self.add_to_buffer(reward_punish)
                 else:
-                    if self.model_config.propagate:
+                    if self.model_config.propagate: #propagate the reward to tuples in episode 
                         for i in range(len(self.episode_run)):
                             self.episode_run[i][0][2] = reward_punish
                         self.exp_buffer.add(self.episode_run)     
@@ -214,6 +214,11 @@ class DDQLAlgo():
 
 
     def prepare_examples(self, full_buffer):
+        '''
+        Prepares examples for training by computing inputs and outputs when no timeseries mode is turned on
+        :param full_buffer: make the function prepare one batch with all the available memory
+        :return: gathered states with corresponding target labels
+        '''
         if not full_buffer:
             train_batch = self.exp_buffer.sample(self.model_config.batch_size)
         else:
@@ -238,6 +243,10 @@ class DDQLAlgo():
 
 
     def prepare_examples_for_timeseries(self):
+        '''
+        Prepares examples for training by computing inputs and outputs when  timeseries mode is turned on. short batches with ordered tuples
+        :return: gathered states with corresponding target labels
+        '''
         train_batch = self.exp_buffer.sample(1, self.model_config.timeseries_steps)
         if len(train_batch) < 1:
             return None, None
@@ -300,7 +309,7 @@ class DDQLAlgo():
                 loss = self.q_net.train(np.vstack(states), target_q_labels)             
                 self.target_net.sync_nets(self.q_net, self.model_config.tau, self.model_config.hard_update)
         else: 
-            for _ in range(int(self.model_config.batch_size/self.model_config.timeseries_steps)*self.model_config.sampling_rate): #due to the actual batches being shorter the baseline sample is expanded
+            for _ in range(int(self.model_config.batch_size/self.model_config.timeseries_steps)*self.model_config.sampling_rate): #due to the actual batches being shorter the baseline sampling is expanded
                 states, target_q_labels = self.prepare_examples_for_timeseries()
                 if states is None or target_q_labels is None:
                     continue
