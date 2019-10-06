@@ -1,23 +1,23 @@
 """
 transforms values from rhbp to rl-values
-@author: lehmann, hrabia
+@author: lehmann, hrabia, gozman
 """
 import numpy
 from behaviour_components.sensors import EncodingConstants
 from rl_config import TransitionConfig
 import rospy
-from rhbp_rl.srv import RecSensor
+from rhbp_rl.srv import RecSensor, GetIndex, RegisterMarlGroup, AddToMarl, RemoveFromMarl
+from rhbp_core.msg import PlannerStatus
+from rl_sensors_client import get_b_index
+from collections import deque
 
 import utils.rhbp_logging
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
 class RlExtension(object):
     """
-    This Extension can be included in the Sensors. It determines how the true values of the sensors should be used the
-    RL-algorithm.
-    # Encoding types = [ hot_state , none] see EncodingConstants above
+    Class to store control over sensor treatment 
     """
-    # TODO state_space does not work for negative numbers!
 
     def __init__(self, name, encoding=0, state_space=2, include_in_rl=True):
         self.name = name
@@ -48,14 +48,71 @@ class InputStateTransformer(object):
         self.conf = TransitionConfig()
         self._last_operational_goals = {}
         self.sensor_descriptors = {}
-        self._set_rl_descriptor_service = rospy.Service('RLRecSensor', RecSensor, self._set_rl_descriptor_callback)
+        self._set_rl_descriptor_service = rospy.Service(self._manager.prefix + '/RLRecSensor', RecSensor, self._set_rl_descriptor_callback)
+        self._behaviour_index_service = rospy.Service(self._manager.prefix + "/GetIndex", GetIndex, self._get_behaviour_index_callback)
+        self._get_marl_group_service = rospy.Service(self._manager.prefix + "/register_marl_group", RegisterMarlGroup, self._get_marl_group)
+        self._add_to_marl_group_service = rospy.Service(self._manager.prefix + "/add_to_marl_group", AddToMarl, self._add_to_marl_group)
+        self._remove_from_marl_group_service = rospy.Service(self._manager.prefix + "/remove_from_marl_group", RemoveFromMarl, self._remove_from_marl_group)
+        self.marl_subscriber = None
+        self.marl_group = []
+        self.marl_group_sub = {}
+        self.marl_group_behaviours = {}
+        self.marl_group_goals = {}
+        self.marl_group_num_behvaviours = {}
 
+    def _get_marl_behaviours_and_goals_callback(self, msg, prefix):
+        if len(msg.runningBehaviours) > 0:
+            self.marl_group_behaviours[prefix].append(msg.runningBehaviours[0])
+            self.marl_group_num_behvaviours[prefix] = len(msg.behaviours)
+        if len(msg.goals) > 0:
+            for goal in msg.goals:
+                self.marl_group_goals[prefix][goal.name] = goal.satisfaction
+
+
+    
+    
     def _set_rl_descriptor_callback(self, req):
         rl_ext = RlExtension(
             name=req.name, state_space=req.state_space, encoding=req.encoding, include_in_rl=req.include_in_rl)
         self.sensor_descriptors[req.name] = rl_ext
         return 1
 
+    def _get_behaviour_index_callback(self, req):
+        num = 0
+        for b in self._manager.behaviours:
+            if b.name == req.behaviour:
+                return num
+            num += 1
+        return -1
+
+    def _get_marl_group(self, req):
+        if self.conf.marl_steps < 1:
+            rhbplog.logwarn("MARL is turned off due to marl_steps being set to 0. If you want to use it, set the marl_steps number to more than 0 and restart")
+            return 0
+        for value in self.marl_group_sub.values():
+            value.unregister()
+        self.marl_group_sub = {}
+        self.marl_group = req.names
+        for name in self.marl_group:
+            sub = rospy.Subscriber(name + '/Planner/plannerStatus', PlannerStatus, self._get_marl_behaviours_and_goals_callback, callback_args=name)
+            self.marl_group_sub[name] = sub
+            self.marl_group_behaviours[name] = deque([0]*self.conf.marl_steps, maxlen = self.conf.marl_steps)
+            self.marl_group_goals[name] = {}
+        return 1
+
+    def _add_to_marl_group(self, req):
+        if self.conf.marl_steps < 1:
+            rhbplog.logwarn("MARL is turned off due to marl_steps being set to 0. If you want to use it, set the marl_steps number to more than 0 and restart")
+            return 0
+        self.marl_group.append(req.name)
+        return 1
+
+    def _remove_from_marl_group(self, req):
+        if self.conf.marl_steps < 1:
+            rhbplog.warn("MARL is turned off due to marl_steps being set to 0. If you want to use it, set the marl_steps number to more than 0 and restart")
+            return 0
+        self.marl_group.remove(req.name)
+        return 1
 
     def calculate_reward(self):
         """
@@ -63,41 +120,47 @@ class InputStateTransformer(object):
         a reward value. 
         :return: reward value
         """
+        if not self.conf.reward_by_sensor:
+            reward_value = 0
 
-        reward_value = 0
+            # we collect the information we need about the goals in a more slim data structure
+            current_operational_goals = {g.name: GoalInfo(g.name, g.fulfillment, g.isPermanent, g.priority,
+                                                        g.satisfaction_threshold)
+                                        for g in self._manager.operational_goals}
 
-        # we collect the information we need about the goals in a more slim data structure
-        current_operational_goals = {g.name: GoalInfo(g.name, g.fulfillment, g.isPermanent, g.priority,
-                                                      g.satisfaction_threshold)
-                                     for g in self._manager.operational_goals}
+            # we are using goal.priority+1, because the default priority is 0.
 
-        # we are using goal.priority+1, because the default priority is 0.
+            # first we check the difference starting from former registered goals
+            for name, g in self._last_operational_goals.iteritems():  # check goals that have been operational before
+                # goal is not anymore listed in operational goals.
+                if name not in current_operational_goals:
+                    # collect reward from completed achievement (non-permanent) goals
+                    if not g.is_permanent:
+                        # here we just use the satisfaction threshold by default 1
+                        reward_value += g.satisfaction_threshold * (g.priority+1)
+                else:  # if it is still operational we compare the difference of fulfillment (current-last)
+                    fulfillment_delta = current_operational_goals[g.name].fulfillment - g.fulfillment
+                    reward_value += fulfillment_delta * (g.priority+1)
 
-        # first we check the difference starting from former registered goals
-        for name, g in self._last_operational_goals.iteritems():  # check goals that have been operational before
-            # goal is not anymore listed in operational goals.
-            if name not in current_operational_goals:
-                # collect reward from completed achievement (non-permanent) goals
-                if not g.is_permanent:
-                    # here we just use the satisfaction threshold by default 1
-                    reward_value += g.satisfaction_threshold * (g.priority+1)
-            else:  # if it is still operational we compare the difference of fulfillment (current-last)
-                fulfillment_delta = current_operational_goals[g.name].fulfillment - g.fulfillment
-                reward_value += fulfillment_delta * (g.priority+1)
+            # next we have to calculate the reward for all goals that have not yet been registered in the former step
+            for name, goal in current_operational_goals.iteritems():
+                if name not in self._last_operational_goals:
+                    if goal.satisfaction_threshold < goal.fulfillment:
+                        fulfillment_delta = goal.satisfaction_threshold
+                    else:
+                        fulfillment_delta = goal.fulfillment
+                    reward_value += fulfillment_delta * (goal.priority + 1)
+                    # the else case was already addressed in the loop above
 
-        # next we have to calculate the reward for all goals that have not yet been registered in the former step
-        for name, goal in current_operational_goals.iteritems():
-            if name not in self._last_operational_goals:
-                if goal.satisfaction_threshold < goal.fulfillment:
-                    fulfillment_delta = goal.satisfaction_threshold
-                else:
-                    fulfillment_delta = goal.fulfillment
-                reward_value += fulfillment_delta * (goal.priority + 1)
-                # the else case was already addressed in the loop above
+            self._last_operational_goals = current_operational_goals
 
-        self._last_operational_goals = current_operational_goals
+            return reward_value
+        else: 
+            goals = {g.name: g.sensor_values for g in self._manager.operational_goals}
+            if len(goals) == 1:
+                return goals.values()[0][0].value
+            return None
 
-        return reward_value
 
     def behaviour_to_index(self, name):
         """
@@ -133,9 +196,34 @@ class InputStateTransformer(object):
         input_array, sensor_input = self.transform_behaviours(input_array)
         # extend input array with the sensors from goals
         input_array = self.transform_goals(sensor_input, input_array)
+        #extend input with actions of the marl group
+        if self.conf.marl_steps > 0:
+            input_array = self.transform_marl_action(input_array)
+        
+        #extend input with goal statuses
+        if self.conf.consider_marl_goals:
+            input_array = self.transform_marl_goals(input_array)
+
         # cut first dummy line
         input_array = input_array[1:]
         return input_array
+
+
+    def transform_marl_action(self, input_array):
+        for prefix, actions in self.marl_group_behaviours.items():
+            for i in range (len(actions)):
+                if isinstance(actions[i], str): #communicate with input transformer of the other agent only if the conversion needs to take place
+                    actions[i] = get_b_index(actions[i],prefix + '/GetIndex').index
+                if self.marl_group_num_behvaviours.has_key(prefix): 
+                    action = self.make_hot_state_encoding(actions[i], self.marl_group_num_behvaviours[prefix])
+                    input_array = numpy.append(input_array, action)        
+        return input_array
+
+    def transform_marl_goals(self, input_array):
+        for goals in self.marl_group_goals.values():
+            for satisfaction in goals.values():
+                input_array = numpy.append(input_array, satisfaction)        
+        return input_array 
 
     def transform_behaviours(self, input_array):
         """

@@ -7,17 +7,19 @@ import pandas as pd
 
 
 '''
-Simple neural network
+Default neural network
 '''
 
 
 class DefaultQNet(AbstractDDQApproximator):
 
-    def __init__(self, number_inputs, number_outputs, use_adam=False, num_hidden_layers=2, num_neurons=16, dropout_rate=0.2, lr=0.001):
+    def __init__(self, number_inputs, number_outputs, use_adam=False, num_hidden_layers=2, num_neurons=16, dropout_rate=0.2, lr=0.001, af="relu", rec=False, batch_norm=False):
+        #tf.reset_default_graph()
+        #tf.enable_eager_execution()
         super(DefaultQNet, self).__init__(number_inputs, number_outputs)
         assert (num_hidden_layers > 0), 'Number of layers should be bigger than 0'
         assert (num_neurons > 0), 'Number of neurons per layer should be bigger than 0'
-        assert (dropout_rate < 1), 'Drop out rate should not be bigger or equalt to 1'
+        assert (dropout_rate < 1), 'Drop out rate should not be bigger or equal to 1'
         self.lr = lr
         self.number_inputs = number_inputs
         self.number_outputs = number_outputs
@@ -28,6 +30,11 @@ class DefaultQNet(AbstractDDQApproximator):
         self.dropout_rate = dropout_rate
         self.__model = None
         self.step = 0
+        tf.set_random_seed(3)
+        self.af = af
+        self.rec = rec
+        self.batch_norm = batch_norm
+
 
     def re_init(self, number_inputs, number_outputs):
         '''
@@ -36,17 +43,29 @@ class DefaultQNet(AbstractDDQApproximator):
         self.step = 0
         self.number_inputs = number_inputs
         self.number_outputs = number_outputs
+        activation = None
+        if self.af == "softmax":
+            activation = tf.nn.softmax
+        elif self.af == "tanh":
+            activation = tf.nn.tanh
+        else:
+            activation = tf.nn.relu
         self.__model = keras.Sequential()
 
-        self.__model.add(layers.Dense(self.num_neurons, activation=tf.nn.tanh,
-                                      input_shape=(self.number_inputs,), use_bias=True, kernel_initializer=tf.keras.initializers.random_uniform()))
+        if self.rec:
+            self.__model.add(layers.CuDNNLSTM(batch_input_shape=(1,1,self.num_inputs), units=int(self.num_neurons), recurrent_initializer='glorot_uniform', stateful=True))
+        else:
+            self.__model.add(layers.Dense(self.num_neurons, activation=activation,
+                                        input_shape=(self.number_inputs,), use_bias=True, kernel_initializer=tf.keras.initializers.random_uniform()))
+        if self.batch_norm:
+            self.__model.add(layers.BatchNormalization())
 
         for i in range(self.num_hidden_layers-1):
-            self.__model.add(layers.Dense(self.num_neurons, activation=tf.nn.tanh,
+            self.__model.add(layers.Dense(self.num_neurons, activation=activation,
                                       use_bias=True, kernel_initializer=tf.keras.initializers.random_uniform()))
         
         
-        self.__model.add(layers.Dense(self.num_neurons, activation=tf.nn.tanh,
+        self.__model.add(layers.Dense(self.num_neurons, activation=activation,
                                       use_bias=True, kernel_initializer=tf.keras.initializers.random_uniform()))
 
         
@@ -63,10 +82,20 @@ class DefaultQNet(AbstractDDQApproximator):
         print(self.__model.summary())
 
     def predict(self, input_state):
-        return self.__model.predict(input_state)
+        if self.rec:
+            input_state1 = np.expand_dims(input_state, axis=1)
+            return self.__model.predict(input_state1)
+        else:
+            return self.__model.predict(input_state)
 
     def train(self, states, labels):
-        history = self.__model.fit(states, labels, epochs=5, verbose=0)
+        if self.rec:
+            for i in range (len(states)):
+                states[i] = np.expand_dims(states[i], axis=1)
+            history = self.__model.fit(states, labels, epochs=3, verbose=0)
+        else:
+            history = self.__model.fit(states, labels, epochs=3, verbose=0)
+        
         return pd.DataFrame(history.history)['mean_squared_error']
 
     def save_model(self, path):
@@ -101,9 +130,11 @@ class DefaultQNet(AbstractDDQApproximator):
         '''
         this method sync the networks softly via computing the updated weights from tau parameter
         '''
-        if hard and (self.step % 5 == 0):
+        self.step+=1
+        if hard and (self.step % 7 == 0):
             print("Hard updated the network")
             self.hard_update(to_sync)
+            self.step=0
             return
         source = to_sync.get_weights_for_sync()
         updates = self.get_soft_update_weights(source, tau)
@@ -125,9 +156,10 @@ class DefaultQNet(AbstractDDQApproximator):
         return [phi * tau for phi in source_weights] + [phi * (1. - tau) for phi in target_weights]
 
     def produce_target(self):
-        target = DefaultQNet(self.number_inputs, self.number_outputs, self.use_adam, self.num_hidden_layers, self.num_neurons, self.dropout_rate, self.lr)
+        target = DefaultQNet(self.number_inputs, self.number_outputs, self.use_adam, self.num_hidden_layers, self.num_neurons, self.dropout_rate, self.lr, self.af, self.rec, self.batch_norm)
         model = tf.keras.models.clone_model(self.__model)
         target.set_model(model)
+        target.hard_update(self)
         return target
 
     def hard_update(self, source):

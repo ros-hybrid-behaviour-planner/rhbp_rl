@@ -63,14 +63,16 @@ class AbstractDDQApproximator(object):
 
 
     @abstractmethod
-    def sync_nets(self, to_sync, tau):
+    def sync_nets(self, to_sync, tau, hard_update):
         '''
         Copies the weights of to_sync model to the current modek
         :param to_sync: q network, the weight of which are used for update
         '''
+        pass
 
     @abstractmethod
     def produce_target(self):
         '''
         This method should return a clone of the q-network made in an appropriate way
         '''
+        pass

@@ -113,20 +113,23 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         # TODO Idea we could also consider to move the rest of this method to a future/thread to increase concurrency
         num_actions = len(self._manager.behaviours)
         # if the rl activation is not used dont calculate the values and set all to zero
-        if self.weight_rl <= 0:  # TODO why this weight comes from a different source?
+        if self.weight_rl <= 0:  
             self.activation_rl = [0] * num_actions  # set all activations to 0
             return
 
-        # get the activations from the rl_component via service
+        # get the activations from the rl_component
         activation_rl = self.get_activation_from_rl_node()
         # return if no activations received
         if activation_rl == None or len(activation_rl) == 0:
             rhbplog.logerr('RL was none')            
             return
 
-        # TODO Idea: Why not test first for exploration? Test to move it before get_activation_from_rl_node.Maybe error
-        #  check " len(self.activation_rl) == 0"could make problems. Getting activation is also saving the current state
-        # hence it has to be called but maybe we can avoid the feed forward through a flag in the service?!
+        # TODO Idea: Why not test first for exploration? Test to move it before get_activation_from_rl_node. 
+        # Getting activation is also saving the current state
+        # hence it has to be called but maybe we can avoid the feed forward through a flag in the service?
+
+        #Commentary: feed-forward itself does not really take that much time when compared to training that also 
+        # is triggered during getting activation. 
 
         # check if exploration chooses randomly best action
         changed, best_action = self.exploration_strategies.get_strategy(
@@ -199,7 +202,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
             last_action_index = None
         else:
             last_action_index = self.input_transformer.behaviour_to_index(
-                last_action[0])  # XXX can be expanded here to multiple executed actions
+                last_action[0]) 
             if last_action_index is None:
                 return False, None
         
@@ -231,6 +234,8 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
                 rospy.logerr("GetActivation service not found")
                 return
             try:
+                if input_state_msg.last_action == None:
+                   input_state_msg.last_action = 0 #other service with complain about type
                 get_activation_request = rospy.ServiceProxy(
                     self.rl_address + 'GetActivation', GetActivation)
                 activation_state = get_activation_request(
@@ -254,17 +259,17 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
         :return: 
         """
         rhbplog.loginfo("starting rl_component as a class")
-        self.rl_component = RLComponent(name=self.rl_address)
+        self.rl_component = RLComponent(name=self.rl_address, prefix = self._manager.prefix)
 
     def start_rl_node(self):
         """
         start the rl_component as a node
         """
-        rospy.loginfo("starting rl_component as a node")
+        rospy.logwarn("starting rl_component as a node")
         package = 'rhbp_rl'
         executable = 'src/rhbp_rl/rl_component.py'
-        command = "rosrun {0} {1} _name:={2}".format(
-            package, executable, self.rl_address)
+        command = "rosrun {0} {1} _name:={2} _prefix:={3}".format(
+            package, executable, self.rl_address, self._manager.prefix)
         p = subprocess.Popen(command, shell=True)
 
         state = p.poll()
@@ -274,6 +279,7 @@ class ReinforcementLearningActivationAlgorithm(BaseActivationAlgorithm):
             rhbplog.loginfo("RL Process terminated with error")
         elif state > 0:
             rhbplog.loginfo("RL Process terminated without error")
+        rospy.sleep(2)
 
 
 
