@@ -156,6 +156,8 @@ class InputStateTransformer(object):
 
             return reward_value
         else: 
+            #This should be used sparingly for some toy problems with frameworks where we have actual rewards supplied directly by frameworks. In this case the learning is driven
+            #by one sensor which should be registered with goal and taken as a reward
             goals = {g.name: g.sensor_values for g in self._manager.operational_goals}
             if len(goals) == 1:
                 return goals.values()[0][0].value
