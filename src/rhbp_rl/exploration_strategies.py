@@ -4,11 +4,11 @@ implements the different exploration strategies
 """
 
 import numpy
-
+from abc import ABCMeta, abstractmethod
 from rl_config import ExplorationConfig
 
 
-class ExplorationStrategies(object):
+class ExplorationStrategy(object):
     """
     this class implements different strategies for exploring. 
     The random exploration chooses always a random action. Therefore, this strategy is not practical to use. 
@@ -21,14 +21,32 @@ class ExplorationStrategies(object):
     Therefore, with DQN as the model, but also for most other models, the e_greedy method with a pre_train phase is the most suiting
     exploration strategy.
     """
-    # TODO better make this a hierarchy of classes implementing different explorations instead of one class with
-    # TODO different methods
-
+    
+    __metaclass__ = ABCMeta
     def __init__(self):
+        super(ExplorationStrategy, self).__init__()
         self.config = ExplorationConfig()
+        
+
+
+
+    def get_strategy(self, counter, num_actions, options):
+        '''
+        Abstract method for returning the exploration decision
+        :param counter: the step in the episode
+        :param num_actions: how many actions are available
+        :param options: dict where additional arguments can be added
+        :return (changed, best_action): changed is True is exploration is to be undertaken, best_action is index of action to be explored
+        '''
+        pass
+
+
+class EpsilonGreedyPreTrain(ExplorationStrategy):
+    def __init__(self):
+        super(EpsilonGreedyPreTrain, self).__init__()
         self.epsilon = self.config.startE
 
-    def e_greedy_pre_train(self, counter, num_actions):
+    def get_strategy(self, counter, num_actions, options=None):
         """
         this function chooses a random action, with a decreasing epsilon and a pretrain phase.
          In the pre train phase only random actions are choosen
@@ -49,7 +67,13 @@ class ExplorationStrategies(object):
 
         return changed, best_action
 
-    def e_greedy(self, counter, num_actions):
+
+class EpsilonGreedy(ExplorationStrategy):
+    def __init__(self):
+        super(EpsilonGreedy, self).__init__()
+        self.epsilon = self.config.startE
+
+    def get_strategy(self, counter, num_actions, options=None):
         """
         this function chooses a random action, with a decreasing epsilon 
         :param counter: which step it is, to identifying how large the epsilon should be
@@ -68,7 +92,14 @@ class ExplorationStrategies(object):
             changed = True
         return changed, best_action
 
-    def random(self, num_actions):
+
+class RandomStrategy(ExplorationStrategy):
+    def __init__(self):
+        super(RandomStrategy, self).__init__()
+        self.epsilon = self.config.startE
+
+
+    def get_strategy(self, counter, num_actions, options=None):
         """
         this function just chooses random actions
         :param num_actions:  number of possible actions

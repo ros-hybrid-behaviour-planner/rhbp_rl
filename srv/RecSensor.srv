@@ -1,0 +1,6 @@
+string name
+bool include_in_rl
+int32 state_space
+int32 encoding
+---
+int32 success

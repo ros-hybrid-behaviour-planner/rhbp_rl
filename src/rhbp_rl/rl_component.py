@@ -1,12 +1,15 @@
 #! /usr/bin/env python2
 """
-@author: lehmann, hrabia
+@author: lehmann, hrabia, gozman
 """
 import rospy
-from dqn_model import DQNModel
+from ddql import DDQLAlgo
 from rhbp_rl.msg import ActivationState
-from rhbp_rl.srv import GetActivation, GetActivationResponse
+from rhbp_rl.srv import GetActivation, GetActivationResponse, EpEnded
 import numpy
+import tensorflow
+from rl_sensors_client import get_b_index
+import traceback
 
 import utils.rhbp_logging
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
@@ -18,7 +21,7 @@ class RLComponent(object):
     It can also be used in a separated node through its service interface.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, prefix=""):
         """
         :param name: name of the rl_component
         """
@@ -27,18 +30,24 @@ class RLComponent(object):
         # True if the model was set up
         self.is_model_init = False
         # Service for communicating the activations
-        self._get_activation_service = rospy.Service(name + 'GetActivation', GetActivation,
+        self._get_activation_service = rospy.Service(prefix + '/GetActivation', GetActivation,
                                                      self._get_activation_state_callback)
+        
+        self._get_episode_end_service = rospy.Service(prefix + '/EpisodeEnd', EpEnded,
+                                                    self._get_episode_end_callback)
+
         # choose appropriate model
-        self.model = DQNModel(self.name)
+        self.model = DDQLAlgo(self.name)
 
         # save the last state
         self.last_state = None
         # the dimensions of the model
         self.number_outputs = -1
         self.number_inputs = -1
-
         self._unregistered = False
+        self.episode_ended = False
+        self.reward = 0
+        self.prefix = prefix
         rospy.on_shutdown(self.unregister)  # cleanup hook also for saving the model.
 
     def _get_activation_state_callback(self, request_msg):
@@ -50,12 +59,21 @@ class RLComponent(object):
         input_state = request_msg.input_state
         negative_states = request_msg.negative_states
         try:
-
             activation_state = self.get_activation_state(input_state, negative_states)
             return GetActivationResponse(activation_state)
         except Exception as e:
             rhbplog.logerr(e.message)
             return None
+    def _get_episode_end_callback(self, episode_end_msg):
+        rhbplog.loginfo("Received the call to end episode wtih reward " + str(episode_end_msg.reward))
+        reward = episode_end_msg.reward
+        last_b = episode_end_msg.behaviour
+        action = get_b_index(last_b,self.prefix + '/GetIndex').index
+        last = numpy.array(self.last_state).reshape(([1, len(self.last_state)]))
+        new = None
+        reward_tuple = (last, new, action, reward)
+        self.model.add_sample(tuple=reward_tuple, end=True, reward_punish=reward, consider_reward=True)
+        return 1
 
     def get_activation_state(self, input_state, negative_states=None):
         """
@@ -64,40 +82,47 @@ class RLComponent(object):
         :param input_state:
         :type input_state: InputState
         :param negative_states:
-        :return: ActivationState
+        :return: 
+        ActivationState
         """
         if negative_states is None:
             negative_states = []
 
         try:
             self.check_if_model_is_valid(input_state.num_inputs, input_state.num_outputs)
-
-            if input_state.last_action:  # only save state if we have a valid prior action.
+            if input_state.last_action is not None:  # only save state if we have a valid prior action.
                 # save current input state
-                self.save_state(input_state)
+                self.save_state(input_state, self.episode_ended, self.reward)
                 # update the last state, which would also be the starting point for the negative states
                 self.last_state = input_state.input_state
                 # save negative states if available
-                for state in negative_states:
-                    self.save_state(state, is_extra_state=True)
+                #for state in negative_states:
+                #    self.save_state(state, is_extra_state=True)
                 # update the model
+                
                 self.model.train_model()
 
             # transform the input state and get activation
             transformed_input = numpy.array(input_state.input_state).reshape(([1, len(input_state.input_state)]))
-            activations = self.model.feed_forward(transformed_input)
+            activations = self.model.predict(transformed_input)
             # return the activation via the service
             activations = activations.tolist()[0]
             activation_state = ActivationState(**{
                 "name": self.name,  # this is sent for sanity check and planner status messages only
                 "activations": activations,
             })
+            self.episode_ended = False
+            self.reward = 0
             return activation_state
         except Exception as e:
+            self.episode_ended = False
+            self.reward = 0
             rhbplog.logerr(e.message)
+            rhbplog.logerr(traceback.format_exc())
+            exit()
             return None
 
-    def save_state(self, input_state, is_extra_state=False):
+    def save_state(self, input_state, end, reward_punish, is_extra_state=False):
         """
         save the old_state,new_state,action,reward tuple for batch updating of the model
         :param input_state: current state input (positive or negative)
@@ -110,8 +135,9 @@ class RLComponent(object):
         last = numpy.array(self.last_state).reshape(([1, len(self.last_state)]))
         new = numpy.array(input_state.input_state).reshape(([1, len(input_state.input_state)]))
         reward_tuple = (last, new, input_state.last_action, input_state.reward)
+        self.model.add_sample(tuple=reward_tuple, end=end, reward_punish=reward_punish, consider_reward=not is_extra_state)
+        
 
-        self.model.add_sample(tuple=reward_tuple, consider_reward=not is_extra_state)
 
     def check_if_model_is_valid(self, num_inputs, num_outputs):
         """
@@ -141,7 +167,7 @@ class RLComponent(object):
         self.last_state = None
 
         self.model.start_nn(num_inputs, num_outputs)
-
+        
         self.is_model_init = True
 
     def unregister(self):
@@ -159,8 +185,9 @@ if __name__ == '__main__':
     try:
         rospy.init_node('rl_node', anonymous=True)
         name = rospy.get_param("~name", "rl_component_node")
-        rl_component = RLComponent(name=name)
-
+        prefix = rospy.get_param("~prefix", "")
+        rl_component = RLComponent(name=name, prefix=prefix)
+        rospy.logwarn("Starting node")
         rospy.spin()
 
     except rospy.ROSInterruptException:
