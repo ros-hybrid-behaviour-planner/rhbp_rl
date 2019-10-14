@@ -54,9 +54,14 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
+  AddToMarl.srv
+  EpEnded.srv
   GetActivation.srv
-  TrainBatches.srv
+  GetIndex.srv
   RecSensor.srv
+  RegisterMarlGroup.srv
+  RemoveFromMarl.srv
+  TrainBatches.srv
 )
 
 ## Generate actions in the 'action' folder

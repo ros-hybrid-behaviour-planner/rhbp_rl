@@ -13,6 +13,7 @@ from collections import deque
 import utils.rhbp_logging
 rhbplog = utils.rhbp_logging.LogManager(logger_name=utils.rhbp_logging.LOGGER_DEFAULT_NAME + '.rl')
 
+
 class RlExtension(object):
     """
     Class to store control over sensor treatment 
@@ -24,6 +25,8 @@ class RlExtension(object):
         # State space is only required for EncodingConstants.HOT_STATE
         self.state_space = state_space
         self.include_in_rl = include_in_rl  # True if it should be used for learning
+
+
 class GoalInfo(object):
     """
     Simple helper class we use to temporarily store goal information we need for reward calculation
