@@ -1,0 +1,4 @@
+int16 reward
+string behaviour
+---
+int16 success
