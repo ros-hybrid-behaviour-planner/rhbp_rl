@@ -138,7 +138,7 @@ class InputStateTransformer(object):
                         # here we just use the satisfaction threshold by default 1
                         reward_value += g.satisfaction_threshold * (g.priority+1)
                 else:  # if it is still operational we compare the difference of fulfillment (current-last)
-                    fulfillment_delta = current_operational_goals[g.name].fulfillment - g.fulfillment
+                    fulfillment_delta = current_operational_goals[g.name].fulfillment - g.fulfillment 
                     reward_value += fulfillment_delta * (g.priority+1)
 
             # next we have to calculate the reward for all goals that have not yet been registered in the former step
