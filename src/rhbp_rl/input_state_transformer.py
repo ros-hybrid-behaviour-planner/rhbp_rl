@@ -3,7 +3,6 @@ transforms values from rhbp to rl-values
 @author: lehmann, hrabia, gozman
 """
 import numpy
-from behaviour_components.sensors import EncodingConstants
 from rl_config import TransitionConfig
 import rospy
 from rhbp_rl.srv import RecSensor, GetIndex, RegisterMarlGroup, AddToMarl, RemoveFromMarl
