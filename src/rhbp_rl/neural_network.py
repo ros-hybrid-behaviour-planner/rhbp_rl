@@ -30,7 +30,7 @@ class DefaultQNet(AbstractDDQApproximator):
         self.dropout_rate = dropout_rate
         self.__model = None
         self.step = 0
-        tf.set_random_seed(3)
+        #tf.set_random_seed(3)
         self.af = af
         self.rec = rec
         self.batch_norm = batch_norm
@@ -53,7 +53,7 @@ class DefaultQNet(AbstractDDQApproximator):
         self.__model = keras.Sequential()
 
         if self.rec:
-            self.__model.add(layers.CuDNNLSTM(batch_input_shape=(1,1,self.num_inputs), units=int(self.num_neurons), recurrent_initializer='glorot_uniform', stateful=True))
+            self.__model.add(layers.LSTM(batch_input_shape=(1,1,self.num_inputs), units=int(self.num_neurons), recurrent_initializer='glorot_uniform', stateful=True))
         else:
             self.__model.add(layers.Dense(self.num_neurons, activation=activation,
                                         input_shape=(self.number_inputs,), use_bias=True, kernel_initializer=tf.keras.initializers.random_uniform()))
